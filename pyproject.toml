@@ -1,0 +1,20 @@
+[project]
+name = "mcp_server_vnc_macos_use"
+version = "0.1.0"
+description = "A simple VNC MCP server for remote computer control"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.4.1", "python-dotenv>=1.0.1", "pillow>=10.0.0", "pyDes>=2.0.1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = ["pyright>=1.1.389"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mcp_server_vnc_macos_use"]
+
+[project.scripts]
+mcp_server_vnc_macos_use = "mcp_server_vnc_macos_use:main" 
