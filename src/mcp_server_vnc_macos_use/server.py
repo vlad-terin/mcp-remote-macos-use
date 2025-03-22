@@ -802,7 +802,8 @@ async def main():
                     return [
                         types.ImageContent(
                             type="image",
-                            image_url=f"data:image/png;base64,{base64_data}",
+                            data=base64_data,
+                            mimeType="image/png",
                             alt_text=f"Screenshot from VNC server at {host}:{port}"
                         )
                     ]
