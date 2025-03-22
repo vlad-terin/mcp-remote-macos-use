@@ -6,7 +6,7 @@ Apple authentication is hectic, you know them...you only other option is commerc
 
 **No setup required on MacOs except for enabling sharing.**
 
-## Why so Critical
+## Why Critical
 - You can use any LLM with this MCP server. You don't have to stick to Claude computer-use.
 - No setup required on MacOs machines at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants (including OOTB) requires running a python app in the background. Hectic!
 - Use great Claude Desktop as UI! (You typically found a just-okay python UI in other projects)
