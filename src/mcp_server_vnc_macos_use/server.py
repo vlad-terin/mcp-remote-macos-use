@@ -708,6 +708,242 @@ class VNCClient:
                 pass
             self.socket = None
 
+    def send_key_event(self, key: int, down: bool) -> bool:
+        """Send a key event to the VNC server.
+        
+        Args:
+            key: X11 keysym value representing the key
+            down: True for key press, False for key release
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not self.socket:
+                logger.error("Not connected to VNC server")
+                return False
+            
+            # Message type 4 = KeyEvent
+            message = bytearray([4])
+            
+            # Down flag (1 = pressed, 0 = released)
+            message.extend([1 if down else 0])
+            
+            # Padding (2 bytes)
+            message.extend([0, 0])
+            
+            # Key (4 bytes, big endian)
+            message.extend(key.to_bytes(4, byteorder='big'))
+            
+            logger.debug(f"Sending KeyEvent: key=0x{key:08x}, down={down}")
+            self.socket.sendall(message)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending key event: {str(e)}")
+            return False
+    
+    def send_pointer_event(self, x: int, y: int, button_mask: int) -> bool:
+        """Send a pointer (mouse) event to the VNC server.
+        
+        Args:
+            x: X position (0 to framebuffer_width-1)
+            y: Y position (0 to framebuffer_height-1)
+            button_mask: Bit mask of pressed buttons:
+                bit 0 = left button (1)
+                bit 1 = middle button (2)
+                bit 2 = right button (4)
+                bit 3 = wheel up (8)
+                bit 4 = wheel down (16)
+                bit 5 = wheel left (32)
+                bit 6 = wheel right (64)
+                
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not self.socket:
+                logger.error("Not connected to VNC server")
+                return False
+            
+            # Ensure coordinates are within framebuffer bounds
+            x = max(0, min(x, self.width - 1))
+            y = max(0, min(y, self.height - 1))
+            
+            # Message type 5 = PointerEvent
+            message = bytearray([5])
+            
+            # Button mask (1 byte)
+            message.extend([button_mask & 0xFF])
+            
+            # X position (2 bytes, big endian)
+            message.extend(x.to_bytes(2, byteorder='big'))
+            
+            # Y position (2 bytes, big endian)
+            message.extend(y.to_bytes(2, byteorder='big'))
+            
+            logger.debug(f"Sending PointerEvent: x={x}, y={y}, button_mask={button_mask:08b}")
+            self.socket.sendall(message)
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending pointer event: {str(e)}")
+            return False
+    
+    def send_mouse_click(self, x: int, y: int, button: int = 1, double_click: bool = False, delay_ms: int = 100) -> bool:
+        """Send a mouse click at the specified position.
+        
+        Args:
+            x: X position
+            y: Y position
+            button: Mouse button (1=left, 2=middle, 3=right)
+            double_click: Whether to perform a double-click
+            delay_ms: Delay between press and release in milliseconds
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not self.socket:
+                logger.error("Not connected to VNC server")
+                return False
+            
+            # Calculate button mask
+            button_mask = 1 << (button - 1)
+            
+            # Move mouse to position first (no buttons pressed)
+            if not self.send_pointer_event(x, y, 0):
+                return False
+            
+            # Single click or first click of double-click
+            if not self.send_pointer_event(x, y, button_mask):
+                return False
+            
+            # Wait for press-release delay
+            time.sleep(delay_ms / 1000.0)
+            
+            # Release button
+            if not self.send_pointer_event(x, y, 0):
+                return False
+            
+            # If double click, perform second click
+            if double_click:
+                # Wait between clicks
+                time.sleep(delay_ms / 1000.0)
+                
+                # Second press
+                if not self.send_pointer_event(x, y, button_mask):
+                    return False
+                
+                # Wait for press-release delay
+                time.sleep(delay_ms / 1000.0)
+                
+                # Second release
+                if not self.send_pointer_event(x, y, 0):
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending mouse click: {str(e)}")
+            return False
+
+    def send_text(self, text: str) -> bool:
+        """Send text as a series of key press/release events.
+        
+        Args:
+            text: The text to send
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not self.socket:
+                logger.error("Not connected to VNC server")
+                return False
+            
+            # Standard ASCII to X11 keysym mapping for printable ASCII characters
+            # For most characters, the keysym is just the ASCII value
+            success = True
+            
+            for char in text:
+                # Special key mapping for common non-printable characters
+                if char == '\n' or char == '\r':  # Return/Enter
+                    key = 0xff0d
+                elif char == '\t':  # Tab
+                    key = 0xff09
+                elif char == '\b':  # Backspace
+                    key = 0xff08
+                elif char == ' ':  # Space
+                    key = 0x20
+                else:
+                    # For printable ASCII and Unicode characters
+                    key = ord(char)
+                
+                # If it's an uppercase letter, we need to simulate a shift press
+                need_shift = char.isupper() or char in '~!@#$%^&*()_+{}|:"<>?'
+                
+                if need_shift:
+                    # Press shift (left shift keysym = 0xffe1)
+                    if not self.send_key_event(0xffe1, True):
+                        success = False
+                        break
+                
+                # Press key
+                if not self.send_key_event(key, True):
+                    success = False
+                    break
+                
+                # Release key
+                if not self.send_key_event(key, False):
+                    success = False
+                    break
+                
+                if need_shift:
+                    # Release shift
+                    if not self.send_key_event(0xffe1, False):
+                        success = False
+                        break
+                
+                # Small delay between keys to avoid overwhelming the server
+                time.sleep(0.01)
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error sending text: {str(e)}")
+            return False
+
+    def send_key_combination(self, keys: List[int]) -> bool:
+        """Send a key combination (e.g., Ctrl+Alt+Delete).
+        
+        Args:
+            keys: List of X11 keysym values to press in sequence
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            if not self.socket:
+                logger.error("Not connected to VNC server")
+                return False
+            
+            # Press all keys in sequence
+            for key in keys:
+                if not self.send_key_event(key, True):
+                    return False
+            
+            # Release all keys in reverse order
+            for key in reversed(keys):
+                if not self.send_key_event(key, False):
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error sending key combination: {str(e)}")
+            return False
+
 
 async def main():
     """Run the VNC MCP server."""
@@ -716,7 +952,13 @@ async def main():
 
     @server.list_resources()
     async def handle_list_resources() -> list[types.Resource]:
-        return []
+        return [
+            types.Resource(
+                name="vnc-controls",
+                description="Documentation for VNC keyboard and mouse controls",
+                uri=types.Uri(scheme="vnc", path="controls")
+            )
+        ]
 
     @server.read_resource()
     async def handle_read_resource(uri: types.AnyUrl) -> str:
@@ -724,6 +966,226 @@ async def main():
             raise ValueError(f"Unsupported URI scheme: {uri.scheme}")
 
         path = str(uri).replace("vnc://", "")
+        
+        if path == "controls":
+            # Documentation for VNC controls
+            doc = """# VNC Remote Control Documentation
+
+## Keyboard Controls
+
+### Special Keys
+The following special keys are supported:
+
+| Key Name | Description |
+|----------|-------------|
+| enter, return | Enter/Return key |
+| backspace | Backspace key |
+| tab | Tab key |
+| escape, esc | Escape key |
+| delete, del | Delete key |
+| home | Home key |
+| end | End key |
+| page_up | Page Up key |
+| page_down | Page Down key |
+| left | Left Arrow key |
+| up | Up Arrow key |
+| right | Right Arrow key |
+| down | Down Arrow key |
+| f1-f12 | Function keys F1 through F12 |
+| space | Space bar |
+
+### Modifiers for Key Combinations
+The following modifier keys are supported in key combinations:
+
+| Modifier | Description |
+|----------|-------------|
+| shift | Shift key |
+| ctrl, control | Control key |
+| alt | Alt key |
+| meta, cmd, command, super | Command/Meta/Windows key |
+
+### Examples of Using Keyboard Controls
+
+#### Sending Text
+To send text, use the `text` parameter with the text string to send:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "text": "Hello world!"
+}
+```
+
+#### Sending Special Keys
+To send a special key, use the `special_key` parameter:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "special_key": "enter"
+}
+```
+
+#### Sending Key Combinations
+To send key combinations, use the `key_combination` parameter with the keys separated by `+`:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "key_combination": "cmd+c"
+}
+```
+
+Common key combinations:
+- `cmd+c`: Copy
+- `cmd+v`: Paste
+- `cmd+a`: Select all
+- `cmd+q`: Quit application
+- `cmd+space`: Open Spotlight (on macOS)
+- `ctrl+alt+delete`: System attention (on Windows)
+
+## Mouse Controls
+
+### Mouse Actions
+The following mouse actions are supported:
+
+| Action | Description |
+|--------|-------------|
+| move | Move the mouse pointer without clicking |
+| click | Perform a single click |
+| double_click | Perform a double-click |
+| press | Press and hold a mouse button |
+| release | Release a previously pressed mouse button |
+| scroll_up | Scroll up (mouse wheel up) |
+| scroll_down | Scroll down (mouse wheel down) |
+
+### Mouse Buttons
+The following mouse buttons are supported:
+
+| Button Number | Description |
+|--------------|-------------|
+| 1 | Left button (default) |
+| 2 | Middle button |
+| 3 | Right button |
+| 4 | Scroll up (used internally) |
+| 5 | Scroll down (used internally) |
+| 6 | Scroll left (used internally) |
+| 7 | Scroll right (used internally) |
+
+### Examples of Using Mouse Controls
+
+#### Moving the Mouse
+To move the mouse pointer without clicking:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 500,
+  "y": 300,
+  "action": "move"
+}
+```
+
+#### Clicking at a Position
+To perform a single left-click at a position:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 500,
+  "y": 300,
+  "action": "click",
+  "button": 1
+}
+```
+
+#### Right-Clicking
+To perform a right-click:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 500,
+  "y": 300,
+  "action": "click",
+  "button": 3
+}
+```
+
+#### Double-Clicking
+To perform a double-click:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 500,
+  "y": 300,
+  "action": "double_click"
+}
+```
+
+#### Scrolling
+To scroll down:
+```json
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 500,
+  "y": 300,
+  "action": "scroll_down"
+}
+```
+
+## Advanced Usage: Drag and Drop
+
+To perform a drag and drop operation, you need to:
+1. Move to the source position
+2. Press the mouse button
+3. Move to the target position
+4. Release the mouse button
+
+Example sequence:
+```json
+// Step 1: Move to source
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 200,
+  "y": 200,
+  "action": "move"
+}
+
+// Step 2: Press the button
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 200,
+  "y": 200,
+  "action": "press",
+  "button": 1
+}
+
+// Step 3: Move to target
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 400,
+  "y": 300,
+  "action": "move"
+}
+
+// Step 4: Release the button
+{
+  "host": "192.168.1.100",
+  "password": "your_password",
+  "x": 400,
+  "y": 300,
+  "action": "release"
+}
+```
+"""
+            return doc
+        
         return ""
 
     @server.list_tools()
@@ -739,7 +1201,7 @@ async def main():
                         "host": {"type": "string", "description": "VNC server hostname or IP address"},
                         "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
                         "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
                         "encryption": {
                             "type": "string", 
                             "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
@@ -748,6 +1210,58 @@ async def main():
                         }
                     },
                     "required": ["host", "password"]
+                },
+            ),
+            types.Tool(
+                name="vnc_macos_send_keys",
+                description="Send keyboard input to a VNC server",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
+                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
+                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
+                        "text": {"type": "string", "description": "Text to send as keystrokes"},
+                        "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
+                        "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password"]
+                },
+            ),
+            types.Tool(
+                name="vnc_macos_send_mouse",
+                description="Send mouse input to a VNC server",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
+                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
+                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
+                        "action": {
+                            "type": "string", 
+                            "description": "Mouse action to perform", 
+                            "enum": ["move", "click", "double_click", "press", "release", "scroll_up", "scroll_down"],
+                            "default": "click"
+                        },
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password", "x", "y"]
                 },
             ),
         ]
@@ -810,6 +1324,208 @@ async def main():
                 finally:
                     # Close VNC connection
                     vnc.close()
+                
+            elif name == "vnc_macos_send_keys":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                text = arguments.get("text")
+                special_key = arguments.get("special_key")
+                key_combination = arguments.get("key_combination")
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to VNC server")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if not text and not special_key and not key_combination:
+                    raise ValueError("Either text, special_key, or key_combination must be provided")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to VNC server
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    result_message = []
+                    
+                    # Process special key
+                    if special_key:
+                        # Map of special key names to X11 keysyms
+                        special_keys = {
+                            "enter": 0xff0d,
+                            "return": 0xff0d,
+                            "backspace": 0xff08,
+                            "tab": 0xff09,
+                            "escape": 0xff1b,
+                            "esc": 0xff1b,
+                            "delete": 0xffff,
+                            "del": 0xffff,
+                            "home": 0xff50,
+                            "end": 0xff57,
+                            "page_up": 0xff55,
+                            "page_down": 0xff56,
+                            "left": 0xff51,
+                            "up": 0xff52,
+                            "right": 0xff53,
+                            "down": 0xff54,
+                            "f1": 0xffbe,
+                            "f2": 0xffbf,
+                            "f3": 0xffc0,
+                            "f4": 0xffc1,
+                            "f5": 0xffc2,
+                            "f6": 0xffc3,
+                            "f7": 0xffc4,
+                            "f8": 0xffc5,
+                            "f9": 0xffc6,
+                            "f10": 0xffc7,
+                            "f11": 0xffc8,
+                            "f12": 0xffc9,
+                            "space": 0x20,
+                        }
+                        
+                        if special_key.lower() in special_keys:
+                            # Send key press and release
+                            key = special_keys[special_key.lower()]
+                            if vnc.send_key_event(key, True) and vnc.send_key_event(key, False):
+                                result_message.append(f"Sent special key: {special_key}")
+                            else:
+                                result_message.append(f"Failed to send special key: {special_key}")
+                        else:
+                            raise ValueError(f"Unknown special key: {special_key}")
+                    
+                    # Process key combination
+                    if key_combination:
+                        # Map for modifier keys
+                        modifiers = {
+                            "shift": 0xffe1,  # Left shift
+                            "ctrl": 0xffe3,   # Left control
+                            "control": 0xffe3,
+                            "alt": 0xffe9,    # Left alt
+                            "meta": 0xffe7,   # Left meta (Windows key)
+                            "cmd": 0xffe7,    # Left cmd/meta (Windows/Mac key)
+                            "command": 0xffe7,
+                            "super": 0xffe7,  # Super key (Linux)
+                        }
+                        
+                        # Parse key combination (e.g., "ctrl+alt+delete")
+                        keys = []
+                        parts = key_combination.lower().split('+')
+                        
+                        for part in parts:
+                            part = part.strip()
+                            if part in modifiers:
+                                keys.append(modifiers[part])
+                            elif part == "delete" or part == "del":
+                                keys.append(0xffff)  # Delete key
+                            elif part in special_keys:
+                                keys.append(special_keys[part])
+                            elif len(part) == 1:
+                                # Single character key
+                                keys.append(ord(part))
+                            else:
+                                raise ValueError(f"Unknown key in combination: {part}")
+                        
+                        if vnc.send_key_combination(keys):
+                            result_message.append(f"Sent key combination: {key_combination}")
+                        else:
+                            result_message.append(f"Failed to send key combination: {key_combination}")
+                    
+                    # Process text
+                    if text:
+                        if vnc.send_text(text):
+                            result_message.append(f"Sent text: {text}")
+                        else:
+                            result_message.append(f"Failed to send text")
+                    
+                    return [types.TextContent(type="text", text="\n".join(result_message))]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                
+            elif name == "vnc_macos_send_mouse":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                button = int(arguments.get("button", 1))
+                action = arguments.get("action", "click")
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to VNC server")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to VNC server
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Calculate button mask based on button number
+                    button_mask = 1 << (button - 1) if button >= 1 and button <= 8 else 0
+                    
+                    # Ensure coordinates are within the screen bounds
+                    x = max(0, min(x, vnc.width - 1))
+                    y = max(0, min(y, vnc.height - 1))
+                    
+                    result = False
+                    action_description = f"Action '{action}' at ({x}, {y})"
+                    
+                    if action == "move":
+                        # Just move the pointer without button press
+                        result = vnc.send_pointer_event(x, y, 0)
+                    elif action == "click":
+                        # Single click
+                        result = vnc.send_mouse_click(x, y, button, False)
+                    elif action == "double_click":
+                        # Double click
+                        result = vnc.send_mouse_click(x, y, button, True)
+                    elif action == "press":
+                        # Press and hold button
+                        result = vnc.send_pointer_event(x, y, button_mask)
+                    elif action == "release":
+                        # Release button
+                        result = vnc.send_pointer_event(x, y, 0)
+                    elif action == "scroll_up":
+                        # Scroll up (button 4)
+                        result = vnc.send_pointer_event(x, y, 1 << 3)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(x, y, 0)
+                    elif action == "scroll_down":
+                        # Scroll down (button 5)
+                        result = vnc.send_pointer_event(x, y, 1 << 4)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(x, y, 0)
+                    else:
+                        raise ValueError(f"Unknown mouse action: {action}")
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"Mouse {action_description} {'succeeded' if result else 'failed'}"
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
