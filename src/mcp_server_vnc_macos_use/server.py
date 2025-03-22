@@ -72,8 +72,35 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
         if not screen_data:
             return False, None, f"Failed to capture screenshot from VNC server at {host}:{port}", None
         
-        # Return success with screen data and dimensions
-        return True, screen_data, None, (vnc.width, vnc.height)
+        # Save original dimensions for reference
+        original_dims = (vnc.width, vnc.height)
+        
+        # Scale the image to FWXGA resolution (1366x768)
+        target_width, target_height = 1366, 768
+        
+        try:
+            # Convert bytes to PIL Image
+            image_data = io.BytesIO(screen_data)
+            img = Image.open(image_data)
+            
+            # Resize the image to the target resolution
+            scaled_img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            
+            # Convert back to bytes
+            output_buffer = io.BytesIO()
+            scaled_img.save(output_buffer, format='PNG')
+            output_buffer.seek(0)
+            scaled_screen_data = output_buffer.getvalue()
+            
+            logger.info(f"Scaled image from {original_dims[0]}x{original_dims[1]} to {target_width}x{target_height}")
+            
+            # Return success with scaled screen data and target dimensions
+            return True, scaled_screen_data, None, (target_width, target_height)
+            
+        except Exception as e:
+            logger.warning(f"Failed to scale image: {str(e)}. Returning original image.")
+            # Return the original image if scaling fails
+            return True, screen_data, None, original_dims
         
     finally:
         # Close VNC connection
