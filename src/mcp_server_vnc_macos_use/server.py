@@ -37,6 +37,53 @@ logger = logging.getLogger('mcp_server_vnc_macos_use')
 logger.setLevel(logging.DEBUG)
 
 
+async def capture_vnc_screen(host: str, port: int, password: str, username: Optional[str] = None, 
+                             encryption: str = "prefer_on") -> Tuple[bool, Optional[bytes], Optional[str], Optional[Tuple[int, int]]]:
+    """Capture a screenshot from a VNC server.
+    
+    Args:
+        host: VNC server hostname or IP address
+        port: VNC server port
+        password: VNC server password
+        username: VNC server username (optional)
+        encryption: Encryption preference (default: "prefer_on")
+        
+    Returns:
+        Tuple containing:
+        - success: True if the operation was successful
+        - screen_data: PNG image data if successful, None otherwise
+        - error_message: Error message if unsuccessful, None otherwise
+        - dimensions: Tuple of (width, height) if successful, None otherwise
+    """
+    logger.debug(f"Connecting to VNC server at {host}:{port} with encryption: {encryption}")
+    
+    # Initialize VNC client
+    vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+    
+    try:
+        # Connect to VNC server
+        success, error_message = vnc.connect()
+        if not success:
+            detailed_error = f"Failed to connect to VNC server at {host}:{port}. {error_message}\n"
+            detailed_error += "This VNC client only supports Apple Authentication (protocol 30). "
+            detailed_error += "Please ensure the VNC server supports this protocol. "
+            detailed_error += "For macOS, enable Screen Sharing in System Preferences > Sharing."
+            return False, None, detailed_error, None
+
+        # Capture screen
+        screen_data = vnc.capture_screen()
+        
+        if not screen_data:
+            return False, None, f"Failed to capture screenshot from VNC server at {host}:{port}", None
+        
+        # Return success with screen data and dimensions
+        return True, screen_data, None, (vnc.width, vnc.height)
+        
+    finally:
+        # Close VNC connection
+        vnc.close()
+
+
 def encrypt_vnc_password(password: str, challenge: bytes) -> bytes:
     """Encrypt VNC password for authentication.
     
@@ -1336,10 +1383,19 @@ Example sequence:
                     "type": "object",
                     "properties": {
                         "prompt": {"type": "string", "description": "The goal of the task"},
-                        "image_base64": {"type": "string", "description": "Required base64-encoded image to provide as visual context for Claude"},
-                        "anthropic_api_key": {"type": "string", "description": "Anthropic API key for authentication"}
+                        "anthropic_api_key": {"type": "string", "description": "Anthropic API key for authentication"},
+                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
+                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
+                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
                     },
-                    "required": ["prompt", "anthropic_api_key", "image_base64"]
+                    "required": ["prompt", "anthropic_api_key", "host", "password"]
                 },
             ),
         ]
@@ -1366,46 +1422,31 @@ Example sequence:
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
-                logger.debug(f"Connecting to VNC server at {host}:{port} with encryption: {encryption}")
+                # Capture screen using helper method
+                success, screen_data, error_message, dimensions = await capture_vnc_screen(
+                    host=host, port=port, password=password, username=username, encryption=encryption
+                )
                 
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to VNC server
-                success, error_message = vnc.connect()
                 if not success:
-                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}\n"
-                    error_msg += "This VNC client only supports Apple Authentication (protocol 30). "
-                    error_msg += "Please ensure the VNC server supports this protocol. "
-                    error_msg += "For macOS, enable Screen Sharing in System Preferences > Sharing."
-                    return [types.TextContent(type="text", text=error_msg)]
+                    return [types.TextContent(type="text", text=error_message)]
                 
-                try:
-                    # Capture screen
-                    screen_data = vnc.capture_screen()
-                    
-                    if not screen_data:
-                        return [types.TextContent(type="text", text=f"Failed to capture screenshot from VNC server at {host}:{port}")]
-                    
-                    # Encode image in base64
-                    base64_data = base64.b64encode(screen_data).decode('utf-8')
-                    
-                    # Return image content with dimensions
-                    return [
-                        types.ImageContent(
-                            type="image",
-                            data=base64_data,
-                            mimeType="image/png",
-                            alt_text=f"Screenshot from VNC server at {host}:{port}"
-                        ),
-                        types.TextContent(
-                            type="text",
-                            text=f"Image dimensions: {vnc.width}x{vnc.height}"
-                        )
-                    ]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
+                # Encode image in base64
+                base64_data = base64.b64encode(screen_data).decode('utf-8')
+                
+                # Return image content with dimensions
+                width, height = dimensions
+                return [
+                    types.ImageContent(
+                        type="image",
+                        data=base64_data,
+                        mimeType="image/png",
+                        alt_text=f"Screenshot from VNC server at {host}:{port}"
+                    ),
+                    types.TextContent(
+                        type="text",
+                        text=f"Image dimensions: {width}x{height}"
+                    )
+                ]
                 
             elif name == "vnc_macos_send_keys":
                 host = arguments.get("host")
@@ -1690,8 +1731,12 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                 
             elif name == "vnc_macos_plan_screen_actions":
                 prompt = arguments.get("prompt")
-                image_base64 = arguments.get("image_base64")
                 anthropic_api_key = arguments.get("anthropic_api_key")
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                encryption = arguments.get("encryption", "prefer_on")
                 
                 if not prompt:
                     raise ValueError("prompt is required")
@@ -1699,16 +1744,26 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                 if not anthropic_api_key:
                     raise ValueError("anthropic_api_key is required")
                 
-                if not image_base64:
-                    raise ValueError("image_base64 is required - Claude needs visual context for computer use")
+                if not host:
+                    raise ValueError("host is required to connect to VNC server")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                # Capture screen using helper method
+                success, screen_data, error_message, _ = await capture_vnc_screen(
+                    host=host, port=port, password=password, username=username, encryption=encryption
+                )
+                
+                if not success:
+                    return [types.TextContent(type="text", text=error_message)]
+                
+                # Encode image in base64
+                image_base64 = base64.b64encode(screen_data).decode('utf-8')
                 
                 logger.debug("Calling Anthropic API with model: claude-3-5-sonnet-20241022")
                 
                 try:
-                    # Remove potential "data:image/" prefix if present
-                    if "base64," in image_base64:
-                        image_base64 = image_base64.split("base64,")[1]
-                    
                     # Create message with text and image content
                     messages = [
                         {
@@ -1719,7 +1774,7 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                                     "type": "image", 
                                     "source": {
                                         "type": "base64", 
-                                        "media_type": "image/jpeg", 
+                                        "media_type": "image/png", 
                                         "data": image_base64
                                     }
                                 }
