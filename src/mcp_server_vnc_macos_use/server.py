@@ -1336,13 +1336,17 @@ Example sequence:
                     # Encode image in base64
                     base64_data = base64.b64encode(screen_data).decode('utf-8')
                     
-                    # Return image content
+                    # Return image content with dimensions
                     return [
                         types.ImageContent(
                             type="image",
                             data=base64_data,
                             mimeType="image/png",
                             alt_text=f"Screenshot from VNC server at {host}:{port}"
+                        ),
+                        types.TextContent(
+                            type="text",
+                            text=f"Image dimensions: {vnc.width}x{vnc.height}"
                         )
                     ]
                 finally:
