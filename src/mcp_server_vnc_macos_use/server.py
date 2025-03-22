@@ -731,7 +731,7 @@ async def main():
         """List available tools"""
         return [
             types.Tool(
-                name="vnc_get_screen",
+                name="vnc_macos_get_screen",
                 description="Connect to a VNC server and get a screenshot of the remote desktop. Only supports Apple Authentication (protocol 30).",
                 inputSchema={
                     "type": "object",
@@ -761,7 +761,7 @@ async def main():
             if not arguments:
                 raise ValueError(f"Missing arguments for {name}")
             
-            if name == "vnc_get_screen":
+            if name == "vnc_macos_get_screen":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
