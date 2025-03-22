@@ -1201,7 +1201,7 @@ Example sequence:
                         "host": {"type": "string", "description": "VNC server hostname or IP address"},
                         "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
                         "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
                         "encryption": {
                             "type": "string", 
                             "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
@@ -1221,7 +1221,7 @@ Example sequence:
                         "host": {"type": "string", "description": "VNC server hostname or IP address"},
                         "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
                         "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
                         "text": {"type": "string", "description": "Text to send as keystrokes"},
                         "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
                         "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
@@ -1237,16 +1237,16 @@ Example sequence:
             ),
             types.Tool(
                 name="vnc_macos_send_mouse",
-                description="Send mouse input to a VNC server",
+                description="Send mouse input to a VNC server using results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "host": {"type": "string", "description": "VNC server hostname or IP address"},
                         "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
                         "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (required for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position from results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position from results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size"},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
                         "action": {
                             "type": "string", 
@@ -1262,6 +1262,30 @@ Example sequence:
                         }
                     },
                     "required": ["host", "password", "x", "y"]
+                },
+            ),
+            types.Tool(
+                name="vnc_macos_scale_coordinates",
+                description="Scale coordinates from a reference screen size to the actual VNC server screen size",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
+                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
+                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen"},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen"},
+                        "x": {"type": "integer", "description": "X coordinate on the reference screen"},
+                        "y": {"type": "integer", "description": "Y coordinate on the reference screen"},
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password", "source_width", "source_height", "x", "y"]
                 },
             ),
         ]
@@ -1521,6 +1545,86 @@ Example sequence:
                     return [types.TextContent(
                         type="text", 
                         text=f"Mouse {action_description} {'succeeded' if result else 'failed'}"
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                
+            elif name == "vnc_macos_scale_coordinates":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                source_width = arguments.get("source_width")
+                source_height = arguments.get("source_height")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to VNC server")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if source_width is None or source_height is None:
+                    raise ValueError("source_width and source_height are required")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Ensure source dimensions are positive
+                if source_width <= 0 or source_height <= 0:
+                    raise ValueError("Source dimensions must be positive values")
+                
+                # Initialize VNC client to get target screen dimensions
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to VNC server to get screen dimensions
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Get target screen dimensions
+                    target_width = vnc.width
+                    target_height = vnc.height
+                    
+                    # Scale coordinates
+                    scaled_x = int((x / source_width) * target_width)
+                    scaled_y = int((y / source_height) * target_height)
+                    
+                    # Ensure coordinates are within bounds
+                    scaled_x = max(0, min(scaled_x, target_width - 1))
+                    scaled_y = max(0, min(scaled_y, target_height - 1))
+                    
+                    # Prepare the response with useful details
+                    response = {
+                        "source": {
+                            "width": source_width,
+                            "height": source_height,
+                            "x": x,
+                            "y": y
+                        },
+                        "target": {
+                            "width": target_width,
+                            "height": target_height,
+                            "x": scaled_x,
+                            "y": scaled_y
+                        },
+                        "scale_factors": {
+                            "x": target_width / source_width,
+                            "y": target_height / source_height
+                        }
+                    }
+                    
+                    return [types.TextContent(
+                        type="text",
+                        text=f"""Coordinates scaled from source ({x}, {y}) to target ({scaled_x}, {scaled_y})
+Source dimensions: {source_width}x{source_height}
+Target dimensions: {target_width}x{target_height}
+Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']['y']:.4f}y"""
                     )]
                 finally:
                     # Close VNC connection
