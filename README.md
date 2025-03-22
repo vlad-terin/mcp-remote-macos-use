@@ -1,16 +1,18 @@
 # MCP Server - Vnc MacOs Use
 Remote control any macOS machine with LLM without Any Host Setup
 
-**Only support MacOS 13+**
-**Apple authentication is hectic, you know them...you only other option is commercial closed-source RealVnc. But I have solved it for you for free!**
+**Support Any MacOS Version (If apple documentation doesn't lie)**
+**Apple authentication is hectic, you know them...you only other option is commercial closed-source RealVnc!**
 
 The only MCP (Model Context Protocol) server that remote control MacOS natively via Vnc to Apple Authentication. No configuration on MacOs except for enabling sharing.
 
-## Features
+## Why so Critical
+- You can use any LLM with this MCP server. You don't have to stick to Claude computer-use.
+- No Host setup at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants requires running a python app in the background. Hectic!
 
-- Capture screenshots from VNC servers
-- Support for Apple Authentication (protocol 30) only
-- Secure Diffie-Hellman key exchange implementation
+
+## Features
+- Support for Apple Authentication (protocol 30) only for now
 - Compatible with macOS Screen Sharing
 
 ## Prerequisites
@@ -113,24 +115,19 @@ mcp_server_vnc_macos_use
 
 ```json
 {
-  "host": "vnc-server-hostname",
+  "host": "vnc-server-hostname-or-ip",
   "port": 5900,
   "password": "your-vnc-password",
   "username": "optional-username"
 }
 ```
 
-The response includes:
-- A base64-encoded screenshot from the VNC server
-- Additional metadata about the connection
 
 ## Limitations
 
 - **Authentication Support**: 
   - Only Apple Authentication (protocol 30) is supported
-  - Other authentication methods like None (1) and VNC Authentication (2) are not supported
 - Currently only supports capturing screenshots; does not support mouse or keyboard input
-- Performance may vary depending on network conditions and VNC server configuration
 
 ## Security Note
 
