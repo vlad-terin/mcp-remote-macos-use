@@ -1,14 +1,15 @@
 # MCP Server - Vnc MacOs Use
-Remote control any macOS machine with LLM without Any Host Setup
+**The only MCP (Model Context Protocol) server that allow LLM to remote control any MacOS machines natively.**
 
-**Support Any MacOS Version (If apple documentation doesn't lie)**
-**Apple authentication is hectic, you know them...you only other option is commercial closed-source RealVnc!**
+Support Any MacOS Version (If apple documentation doesn't lie)
+Apple authentication is hectic, you know them...you only other option is commercial closed-source RealVnc!
 
-The only MCP (Model Context Protocol) server that remote control MacOS natively via Vnc to Apple Authentication. No configuration on MacOs except for enabling sharing.
+**No setup required on MacOs except for enabling sharing.**
 
 ## Why so Critical
 - You can use any LLM with this MCP server. You don't have to stick to Claude computer-use.
-- No Host setup at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants requires running a python app in the background. Hectic!
+- No setup required on MacOs machines at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants (including OOTB) requires running a python app in the background. Hectic!
+- Use great Claude Desktop as UI! (You typically found a just-okay python UI in other projects)
 
 
 ## Features
@@ -16,7 +17,6 @@ The only MCP (Model Context Protocol) server that remote control MacOS natively 
 - Compatible with macOS Screen Sharing
 
 ## Prerequisites
-
 - Python 3.11 or higher
 - Network access to VNC server
 
@@ -26,9 +26,6 @@ The only MCP (Model Context Protocol) server that remote control MacOS natively 
 # Clone the repository
 git clone https://github.com/yourusername/mcp-vnc-macos-use.git
 cd mcp-vnc-macos-use
-
-# Install dependencies
-pip install -e .
 ```
 
 ## Docker
@@ -57,24 +54,6 @@ You can configure Claude Desktop to use the Docker image by adding the following
         "--rm",
         "buryhuang/mcp-vnc-macos-use:latest"
       ]
-    }
-  }
-}
-```
-
-### Local Python Usage
-
-If you prefer to run the server directly with Python, you can use this configuration:
-
-```json
-{
-  "mcpServers": {
-    "vnc-client": {
-      "command": "python",
-      "args": ["-m", "mcp_server_vnc_macos_use.server"],
-      "env": {
-        "PYTHONPATH": "/path/to/your/mcp-vnc-macos-use"
-      }
     }
   }
 }
@@ -118,7 +97,7 @@ mcp_server_vnc_macos_use
   "host": "vnc-server-hostname-or-ip",
   "port": 5900,
   "password": "your-vnc-password",
-  "username": "optional-username"
+  "username": "your-username"
 }
 ```
 
