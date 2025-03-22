@@ -10,6 +10,17 @@ import struct
 from PIL import Image
 import asyncio
 import pyDes
+import json
+import httpx
+import re
+from base64 import b64encode
+
+# Import Anthropic for the computer use capability
+from anthropic import Anthropic
+from anthropic.types.beta import BetaMessageParam
+from anthropic import APIResponse
+from anthropic.types.beta import BetaMessage
+from typing import cast
 
 # Import MCP server libraries
 from mcp.server.models import InitializationOptions
@@ -945,6 +956,36 @@ class VNCClient:
             return False
 
 
+def call_anthropic_api(api_key: str, messages: list, system: str = None):
+    """Call the Anthropic API using the with_raw_response pattern.
+    
+    Args:
+        api_key: Anthropic API key
+        messages: List of messages to send to the API
+        system: Optional system prompt
+        
+    Returns:
+        The parsed response from the API
+    """
+    client = Anthropic(api_key=api_key)
+    
+    # Call the API synchronously
+    raw_response = client.beta.messages.with_raw_response.create(
+        max_tokens=4096,
+        messages=messages,
+        model="claude-3-5-sonnet-20241022",
+        system=system,
+        tools=[{"name": "computer", "type": "computer_20241022"}],
+        betas=["computer-use-2024-10-22"],
+    )
+    
+    # Parse the response
+    response = cast(APIResponse[BetaMessage], raw_response).parse()
+    logger.debug(f"Anthropic API response: {response}")
+    
+    return response
+
+
 async def main():
     """Run the VNC MCP server."""
     logger.info("VNC computer use server starting")
@@ -1286,6 +1327,19 @@ Example sequence:
                         }
                     },
                     "required": ["host", "password", "source_width", "source_height", "x", "y"]
+                },
+            ),
+            types.Tool(
+                name="vnc_macos_plan_screen_actions",
+                description="Take the input of prompts as goal, and the screenshot of the screen and plans the screen actions, get the accurate coordinates to take to complete the task",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "prompt": {"type": "string", "description": "The goal of the task"},
+                        "image_base64": {"type": "string", "description": "Required base64-encoded image to provide as visual context for Claude"},
+                        "anthropic_api_key": {"type": "string", "description": "Anthropic API key for authentication"}
+                    },
+                    "required": ["prompt", "anthropic_api_key", "image_base64"]
                 },
             ),
         ]
@@ -1634,6 +1688,72 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                     # Close VNC connection
                     vnc.close()
                 
+            elif name == "vnc_macos_plan_screen_actions":
+                prompt = arguments.get("prompt")
+                image_base64 = arguments.get("image_base64")
+                anthropic_api_key = arguments.get("anthropic_api_key")
+                
+                if not prompt:
+                    raise ValueError("prompt is required")
+                    
+                if not anthropic_api_key:
+                    raise ValueError("anthropic_api_key is required")
+                
+                if not image_base64:
+                    raise ValueError("image_base64 is required - Claude needs visual context for computer use")
+                
+                logger.debug("Calling Anthropic API with model: claude-3-5-sonnet-20241022")
+                
+                try:
+                    # Remove potential "data:image/" prefix if present
+                    if "base64," in image_base64:
+                        image_base64 = image_base64.split("base64,")[1]
+                    
+                    # Create message with text and image content
+                    messages = [
+                        {
+                            "role": "user", 
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image", 
+                                    "source": {
+                                        "type": "base64", 
+                                        "media_type": "image/jpeg", 
+                                        "data": image_base64
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                    
+                    # Call the Anthropic API using the helper function
+                    response = call_anthropic_api(
+                        api_key=anthropic_api_key,
+                        messages=messages
+                    )
+                    
+                    # Extract response text
+                    response_text = ""
+                    
+                    # Include token usage information if available
+                    if hasattr(response, "usage"):
+                        response_text += f"Token Usage: {json.dumps(response.usage.model_dump(), indent=2)}\n\n"
+                    
+                    # Process content from the response
+                    for content_block in response.content:
+                        if content_block.type == "text":
+                            response_text += content_block.text
+                        elif content_block.type == "tool_use":
+                            response_text += f"\nTool Use Request:\n{json.dumps(content_block.input, indent=2)}\n"
+                    
+                    return [types.TextContent(type="text", text=response_text)]
+                    
+                except Exception as e:
+                    error_msg = f"Error calling Anthropic API: {str(e)}"
+                    logger.error(error_msg, exc_info=True)
+                    return [types.TextContent(type="text", text=error_msg)]
+            
             else:
                 raise ValueError(f"Unknown tool: {name}")
 

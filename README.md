@@ -11,6 +11,10 @@ Apple authentication is hectic, you know them...you only other option is commerc
 - No setup required on MacOs machines at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants (including OOTB) requires running a python app in the background. Hectic!
 - Use great Claude Desktop as UI! (You typically found a just-okay python UI in other projects)
 
+** Limitation
+The results highly depending on how the driving model return the accurate screen coordinates. For now I need the Anthropic api key to use "computer-use-2024-10-22".
+If you are using other MCP Clients, you can skip this call and allow your driving model to do their things. Such as, gpt-4o may work just fine.
+
 
 ## Features
 - Support for Apple Authentication (protocol 30) only for now
@@ -26,7 +30,23 @@ Apple authentication is hectic, you know them...you only other option is commerc
 # Clone the repository
 git clone https://github.com/yourusername/mcp-vnc-macos-use.git
 cd mcp-vnc-macos-use
+
+# Install dependencies
+pip install -e .
 ```
+
+### Dependencies
+
+This package requires the following dependencies:
+- Python 3.10 or higher
+- MCP (Model Context Protocol) >=1.4.1
+- python-dotenv >=1.0.1
+- Pillow >=10.0.0
+- pyDes >=2.0.1
+- cryptography >=44.0.0
+- anthropic >=0.15.0 (for the vnc_macos_plan_screen_actions tool)
+
+**Note:** The Anthropic package is a required dependency for this MCP server. It is used by the vnc_macos_plan_screen_actions tool to interact with Claude's computer use capability.
 
 ## Docker
 
@@ -101,6 +121,21 @@ mcp_server_vnc_macos_use
 }
 ```
 
+#### Using get_actions with Claude's Computer Use
+
+The `get_actions` tool allows you to leverage Anthropic's Claude models with computer use capability to generate actions based on prompts. This tool requires an Anthropic API key and a screenshot image in base64 format.
+
+```json
+{
+  "prompt": "Open Firefox and go to google.com",
+  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
+  "image_base64": "required_base64_encoded_screenshot"
+}
+```
+
+**Note:** The `image_base64` parameter is required - Claude needs visual context to interact with the computer interface. You can typically get this by first calling the `vnc_macos_get_screen` tool, which returns a base64-encoded screenshot that can be used directly with the `get_actions` tool.
+
+This tool uses Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) and Anthropic's computer use functionality. The tool returns the generated actions from Claude with computer use capability. You can then use these actions to guide the VNC server interactions.
 
 ## Limitations
 
