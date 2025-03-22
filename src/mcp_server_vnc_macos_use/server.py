@@ -1,20 +1,16 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-import os
 from dotenv import load_dotenv
 import base64
 import socket
 import time
 import io
-import struct
 from PIL import Image
 import asyncio
 import pyDes
 import json
-import httpx
-import re
 from base64 import b64encode
-
+from datetime import datetime
 # Import Anthropic for the computer use capability
 from anthropic import Anthropic
 from anthropic.types.beta import BetaMessageParam
@@ -1003,13 +999,15 @@ class VNCClient:
             return False
 
 
-def call_anthropic_api(api_key: str, messages: list, system: str = None):
+def call_anthropic_api(api_key: str, messages: list, display_width: int = 1440, display_height: int = 900):
     """Call the Anthropic API using the with_raw_response pattern.
     
     Args:
         api_key: Anthropic API key
         messages: List of messages to send to the API
         system: Optional system prompt
+        display_width: Width of the display for computer use capability
+        display_height: Height of the display for computer use capability
         
     Returns:
         The parsed response from the API
@@ -1021,8 +1019,17 @@ def call_anthropic_api(api_key: str, messages: list, system: str = None):
         max_tokens=4096,
         messages=messages,
         model="claude-3-5-sonnet-20241022",
-        system=system,
-        tools=[{"name": "computer", "type": "computer_20241022"}],
+        system=f"""<SYSTEM_CAPABILITY>
+* You are utilizing a Windows system with internet access.
+* The current date is {datetime.today().strftime('%A, %B %d, %Y')}.
+</SYSTEM_CAPABILITY>""",
+        tools=[{
+            "name": "computer", 
+            "type": "computer_20241022",
+            "display_width_px": display_width,
+            "display_height_px": display_height,
+            "display_number": 0
+        }],
         betas=["computer-use-2024-10-22"],
     )
     
@@ -1751,17 +1758,20 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
                 # Capture screen using helper method
-                success, screen_data, error_message, _ = await capture_vnc_screen(
+                success, screen_data, error_message, dimensions = await capture_vnc_screen(
                     host=host, port=port, password=password, username=username, encryption=encryption
                 )
                 
                 if not success:
                     return [types.TextContent(type="text", text=error_message)]
                 
+                # Get the actual display dimensions from the VNC connection
+                width, height = dimensions
+                
                 # Encode image in base64
                 image_base64 = base64.b64encode(screen_data).decode('utf-8')
                 
-                logger.debug("Calling Anthropic API with model: claude-3-5-sonnet-20241022")
+                logger.debug(f"Calling Anthropic API with model: claude-3-5-sonnet-20241022, screen dimensions: {width}x{height}")
                 
                 try:
                     # Create message with text and image content
@@ -1785,7 +1795,9 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                     # Call the Anthropic API using the helper function
                     response = call_anthropic_api(
                         api_key=anthropic_api_key,
-                        messages=messages
+                        messages=messages,
+                        display_width=width,
+                        display_height=height
                     )
                     
                     # Extract response text
