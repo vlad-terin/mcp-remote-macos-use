@@ -1312,7 +1312,7 @@ Example sequence:
             ),
             types.Tool(
                 name="remote_macos_mouse_move",
-                description="Move the mouse cursor to specified coordinates on a remote MacOs machine",
+                description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -1320,8 +1320,10 @@ Example sequence:
                         "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
                         "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
                         "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
                         "encryption": {
                             "type": "string", 
                             "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
@@ -1334,7 +1336,7 @@ Example sequence:
             ),
             types.Tool(
                 name="remote_macos_mouse_click",
-                description="Perform a mouse click at specified coordinates on a remote MacOs machine",
+                description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -1342,8 +1344,10 @@ Example sequence:
                         "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
                         "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
                         "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
                         "encryption": {
                             "type": "string", 
@@ -1357,7 +1361,7 @@ Example sequence:
             ),
             types.Tool(
                 name="remote_macos_mouse_double_click",
-                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine",
+                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -1365,8 +1369,10 @@ Example sequence:
                         "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
                         "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
                         "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
                         "encryption": {
                             "type": "string", 
@@ -1380,7 +1386,7 @@ Example sequence:
             ),
             types.Tool(
                 name="remote_macos_mouse_scroll",
-                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine",
+                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -1388,8 +1394,10 @@ Example sequence:
                         "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
                         "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
                         "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
                         "direction": {
                             "type": "string", 
                             "description": "Scroll direction", 
@@ -1404,30 +1412,6 @@ Example sequence:
                         }
                     },
                     "required": ["host", "password", "x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_scale_coordinates",
-                description="Scale coordinates from a reference screen size to the actual remote MacOs machine screen size",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen"},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen"},
-                        "x": {"type": "integer", "description": "X coordinate on the reference screen"},
-                        "y": {"type": "integer", "description": "Y coordinate on the reference screen"},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "password", "source_width", "source_height", "x", "y"]
                 },
             ),
         ]
@@ -1612,6 +1596,8 @@ Example sequence:
                 username = arguments.get("username")
                 x = arguments.get("x")
                 y = arguments.get("y")
+                source_width = int(arguments.get("source_width", 1366))
+                source_height = int(arguments.get("source_height", 768))
                 encryption = arguments.get("encryption", "prefer_on")
                 
                 if not host:
@@ -1619,195 +1605,6 @@ Example sequence:
                 
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if x is None or y is None:
-                    raise ValueError("x and y coordinates are required")
-                
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to remote MacOs machine
-                success, error_message = vnc.connect()
-                if not success:
-                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
-                    return [types.TextContent(type="text", text=error_msg)]
-                
-                try:
-                    # Ensure coordinates are within the screen bounds
-                    x = max(0, min(x, vnc.width - 1))
-                    y = max(0, min(y, vnc.height - 1))
-                    
-                    # Move the mouse pointer
-                    result = vnc.send_pointer_event(x, y, 0)
-                    
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"Mouse move to ({x}, {y}) {'succeeded' if result else 'failed'}"
-                    )]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
-                    
-            elif name == "remote_macos_mouse_click":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                x = arguments.get("x")
-                y = arguments.get("y")
-                button = int(arguments.get("button", 1))
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if x is None or y is None:
-                    raise ValueError("x and y coordinates are required")
-                
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to remote MacOs machine
-                success, error_message = vnc.connect()
-                if not success:
-                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
-                    return [types.TextContent(type="text", text=error_msg)]
-                
-                try:
-                    # Ensure coordinates are within the screen bounds
-                    x = max(0, min(x, vnc.width - 1))
-                    y = max(0, min(y, vnc.height - 1))
-                    
-                    # Single click
-                    result = vnc.send_mouse_click(x, y, button, False)
-                    
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"Mouse click (button {button}) at ({x}, {y}) {'succeeded' if result else 'failed'}"
-                    )]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
-                    
-            elif name == "remote_macos_mouse_double_click":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                x = arguments.get("x")
-                y = arguments.get("y")
-                button = int(arguments.get("button", 1))
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if x is None or y is None:
-                    raise ValueError("x and y coordinates are required")
-                
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to remote MacOs machine
-                success, error_message = vnc.connect()
-                if not success:
-                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
-                    return [types.TextContent(type="text", text=error_msg)]
-                
-                try:
-                    # Ensure coordinates are within the screen bounds
-                    x = max(0, min(x, vnc.width - 1))
-                    y = max(0, min(y, vnc.height - 1))
-                    
-                    # Double click
-                    result = vnc.send_mouse_click(x, y, button, True)
-                    
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"Mouse double-click (button {button}) at ({x}, {y}) {'succeeded' if result else 'failed'}"
-                    )]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
-                    
-            elif name == "remote_macos_mouse_scroll":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                x = arguments.get("x")
-                y = arguments.get("y")
-                direction = arguments.get("direction", "down")
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if x is None or y is None:
-                    raise ValueError("x and y coordinates are required")
-                
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to remote MacOs machine
-                success, error_message = vnc.connect()
-                if not success:
-                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
-                    return [types.TextContent(type="text", text=error_msg)]
-                
-                try:
-                    # Ensure coordinates are within the screen bounds
-                    x = max(0, min(x, vnc.width - 1))
-                    y = max(0, min(y, vnc.height - 1))
-                    
-                    # Scroll
-                    if direction.lower() == "up":
-                        # Scroll up (button 4)
-                        result = vnc.send_pointer_event(x, y, 1 << 3)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(x, y, 0)
-                    else:  # down
-                        # Scroll down (button 5)
-                        result = vnc.send_pointer_event(x, y, 1 << 4)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(x, y, 0)
-                    
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"Mouse scroll {direction} at ({x}, {y}) {'succeeded' if result else 'failed'}"
-                    )]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
-                
-            elif name == "remote_macos_scale_coordinates":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                source_width = arguments.get("source_width")
-                source_height = arguments.get("source_height")
-                x = arguments.get("x")
-                y = arguments.get("y")
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if source_width is None or source_height is None:
-                    raise ValueError("source_width and source_height are required")
                 
                 if x is None or y is None:
                     raise ValueError("x and y coordinates are required")
@@ -1816,10 +1613,10 @@ Example sequence:
                 if source_width <= 0 or source_height <= 0:
                     raise ValueError("Source dimensions must be positive values")
                 
-                # Initialize VNC client to get target screen dimensions
+                # Initialize VNC client
                 vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
                 
-                # Connect to remote MacOs machine to get screen dimensions
+                # Connect to remote MacOs machine
                 success, error_message = vnc.connect()
                 if not success:
                     error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
@@ -1834,36 +1631,235 @@ Example sequence:
                     scaled_x = int((x / source_width) * target_width)
                     scaled_y = int((y / source_height) * target_height)
                     
-                    # Ensure coordinates are within bounds
+                    # Ensure coordinates are within the screen bounds
                     scaled_x = max(0, min(scaled_x, target_width - 1))
                     scaled_y = max(0, min(scaled_y, target_height - 1))
                     
+                    # Move the mouse pointer
+                    result = vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    
                     # Prepare the response with useful details
-                    response = {
-                        "source": {
-                            "width": source_width,
-                            "height": source_height,
-                            "x": x,
-                            "y": y
-                        },
-                        "target": {
-                            "width": target_width,
-                            "height": target_height,
-                            "x": scaled_x,
-                            "y": scaled_y
-                        },
-                        "scale_factors": {
-                            "x": target_width / source_width,
-                            "y": target_height / source_height
-                        }
+                    scale_factors = {
+                        "x": target_width / source_width,
+                        "y": target_height / source_height
                     }
                     
                     return [types.TextContent(
-                        type="text",
-                        text=f"""Coordinates scaled from source ({x}, {y}) to target ({scaled_x}, {scaled_y})
+                        type="text", 
+                        text=f"""Mouse move from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
 Source dimensions: {source_width}x{source_height}
 Target dimensions: {target_width}x{target_height}
-Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']['y']:.4f}y"""
+Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_click":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                source_width = int(arguments.get("source_width", 1366))
+                source_height = int(arguments.get("source_height", 768))
+                button = int(arguments.get("button", 1))
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Ensure source dimensions are positive
+                if source_width <= 0 or source_height <= 0:
+                    raise ValueError("Source dimensions must be positive values")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Get target screen dimensions
+                    target_width = vnc.width
+                    target_height = vnc.height
+                    
+                    # Scale coordinates
+                    scaled_x = int((x / source_width) * target_width)
+                    scaled_y = int((y / source_height) * target_height)
+                    
+                    # Ensure coordinates are within the screen bounds
+                    scaled_x = max(0, min(scaled_x, target_width - 1))
+                    scaled_y = max(0, min(scaled_y, target_height - 1))
+                    
+                    # Single click
+                    result = vnc.send_mouse_click(scaled_x, scaled_y, button, False)
+                    
+                    # Prepare the response with useful details
+                    scale_factors = {
+                        "x": target_width / source_width,
+                        "y": target_height / source_height
+                    }
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"""Mouse click (button {button}) from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
+Source dimensions: {source_width}x{source_height}
+Target dimensions: {target_width}x{target_height}
+Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_double_click":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                source_width = int(arguments.get("source_width", 1366))
+                source_height = int(arguments.get("source_height", 768))
+                button = int(arguments.get("button", 1))
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Ensure source dimensions are positive
+                if source_width <= 0 or source_height <= 0:
+                    raise ValueError("Source dimensions must be positive values")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Get target screen dimensions
+                    target_width = vnc.width
+                    target_height = vnc.height
+                    
+                    # Scale coordinates
+                    scaled_x = int((x / source_width) * target_width)
+                    scaled_y = int((y / source_height) * target_height)
+                    
+                    # Ensure coordinates are within the screen bounds
+                    scaled_x = max(0, min(scaled_x, target_width - 1))
+                    scaled_y = max(0, min(scaled_y, target_height - 1))
+                    
+                    # Double click
+                    result = vnc.send_mouse_click(scaled_x, scaled_y, button, True)
+                    
+                    # Prepare the response with useful details
+                    scale_factors = {
+                        "x": target_width / source_width,
+                        "y": target_height / source_height
+                    }
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"""Mouse double-click (button {button}) from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
+Source dimensions: {source_width}x{source_height}
+Target dimensions: {target_width}x{target_height}
+Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_scroll":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                source_width = int(arguments.get("source_width", 1366))
+                source_height = int(arguments.get("source_height", 768))
+                direction = arguments.get("direction", "down")
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Ensure source dimensions are positive
+                if source_width <= 0 or source_height <= 0:
+                    raise ValueError("Source dimensions must be positive values")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Get target screen dimensions
+                    target_width = vnc.width
+                    target_height = vnc.height
+                    
+                    # Scale coordinates
+                    scaled_x = int((x / source_width) * target_width)
+                    scaled_y = int((y / source_height) * target_height)
+                    
+                    # Ensure coordinates are within the screen bounds
+                    scaled_x = max(0, min(scaled_x, target_width - 1))
+                    scaled_y = max(0, min(scaled_y, target_height - 1))
+                    
+                    # Scroll
+                    if direction.lower() == "up":
+                        # Scroll up (button 4)
+                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 3)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    else:  # down
+                        # Scroll down (button 5)
+                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 4)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    
+                    # Prepare the response with useful details
+                    scale_factors = {
+                        "x": target_width / source_width,
+                        "y": target_height / source_height
+                    }
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"""Mouse scroll {direction} from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
+Source dimensions: {source_width}x{source_height}
+Target dimensions: {target_width}x{target_height}
+Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
                     )]
                 finally:
                     # Close VNC connection
