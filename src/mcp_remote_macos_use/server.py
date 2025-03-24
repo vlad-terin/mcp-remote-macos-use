@@ -1284,136 +1284,154 @@ Example sequence:
                             "default": "prefer_on"
                         }
                     },
-                    "required": ["host", "password"]
+                    "required": ["host", "username", "password"]
                 },
             ),
             types.Tool(
-                name="remote_macos_send_keys",
-                description="Send keyboard input to a remote MacOs machine",
+                name="remote_macos_run_ui_script",
+                description="Run Apple Script on a remote MacOs machine. You should prioritize using this tool over other mouse or keyboard tools.",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "text": {"type": "string", "description": "Text to send as keystrokes"},
-                        "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
-                        "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
+                        "port": {"type": "integer", "description": "SSH port (default: 22)"},
+                        "username": {"type": "string", "description": "SSH username for authentication"},
+                        "password": {"type": "string", "description": "SSH password for authentication (used if private_key not provided)"},
+                        "private_key": {"type": "string", "description": "Private key content for SSH authentication (base64 encoded, used if password not provided)"},
+                        "private_key_password": {"type": "string", "description": "Password for encrypted private key (if needed)"},
+                        "apple_script": {"type": "string", "description": "The one-line apple script that will implement your screen operations. This should not be a complex multiple-line script."},
+                        "timeout": {"type": "integer", "description": "Command execution timeout in seconds (default: 60)"}
                     },
-                    "required": ["host", "password"]
+                    "required": ["host", "username", "password", "apple_script"]
                 },
             ),
-            types.Tool(
-                name="remote_macos_mouse_move",
-                description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "password", "x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_click",
-                description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "password", "x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_double_click",
-                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "password", "x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_scroll",
-                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "direction": {
-                            "type": "string", 
-                            "description": "Scroll direction", 
-                            "enum": ["up", "down"],
-                            "default": "down"
-                        },
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "password", "x", "y"]
-                },
-            ),
+            # types.Tool(
+            #     name="remote_macos_send_keys",
+            #     description="Send keyboard input to a remote MacOs machine",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+            #             "text": {"type": "string", "description": "Text to send as keystrokes"},
+            #             "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
+            #             "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
+            #             "encryption": {
+            #                 "type": "string", 
+            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+            #                 "enum": ["prefer_on", "prefer_off", "server"],
+            #                 "default": "prefer_on"
+            #             }
+            #         },
+            #         "required": ["host", "password"]
+            #     },
+            # ),
+            # types.Tool(
+            #     name="remote_macos_mouse_move",
+            #     description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+            #             "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+            #             "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+            #             "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+            #             "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+            #             "encryption": {
+            #                 "type": "string", 
+            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+            #                 "enum": ["prefer_on", "prefer_off", "server"],
+            #                 "default": "prefer_on"
+            #             }
+            #         },
+            #         "required": ["host", "password", "x", "y"]
+            #     },
+            # ),
+            # types.Tool(
+            #     name="remote_macos_mouse_click",
+            #     description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+            #             "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+            #             "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+            #             "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+            #             "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+            #             "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
+            #             "encryption": {
+            #                 "type": "string", 
+            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+            #                 "enum": ["prefer_on", "prefer_off", "server"],
+            #                 "default": "prefer_on"
+            #             }
+            #         },
+            #         "required": ["host", "password", "x", "y"]
+            #     },
+            # ),
+            # types.Tool(
+            #     name="remote_macos_mouse_double_click",
+            #     description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+            #             "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+            #             "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+            #             "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+            #             "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+            #             "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
+            #             "encryption": {
+            #                 "type": "string", 
+            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+            #                 "enum": ["prefer_on", "prefer_off", "server"],
+            #                 "default": "prefer_on"
+            #             }
+            #         },
+            #         "required": ["host", "password", "x", "y"]
+            #     },
+            # ),
+            # types.Tool(
+            #     name="remote_macos_mouse_scroll",
+            #     description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+            #             "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+            #             "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+            #             "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+            #             "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+            #             "direction": {
+            #                 "type": "string", 
+            #                 "description": "Scroll direction", 
+            #                 "enum": ["up", "down"],
+            #                 "default": "down"
+            #             },
+            #             "encryption": {
+            #                 "type": "string", 
+            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+            #                 "enum": ["prefer_on", "prefer_off", "server"],
+            #                 "default": "prefer_on"
+            #             }
+            #         },
+            #         "required": ["host", "password", "x", "y"]
+            #     },
+            # ),
         ]
 
     @server.call_tool()
@@ -1446,6 +1464,9 @@ Example sequence:
                 if not success:
                     return [types.TextContent(type="text", text=error_message)]
                 
+                # Ensure base64 is imported
+                import base64
+                
                 # Encode image in base64
                 base64_data = base64.b64encode(screen_data).decode('utf-8')
                 
@@ -1464,6 +1485,152 @@ Example sequence:
                     )
                 ]
                 
+            elif name == "remote_macos_run_ui_script":
+                # Extract arguments
+                host = arguments.get("host")
+                port = int(arguments.get("port", 22))
+                username = arguments.get("username")
+                password = arguments.get("password")
+                private_key = arguments.get("private_key")
+                private_key_password = arguments.get("private_key_password")
+                apple_script = arguments.get("apple_script")
+                timeout = int(arguments.get("timeout", 60))
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not username:
+                    raise ValueError("username is required for SSH authentication")
+                
+                if not apple_script:
+                    raise ValueError("apple_script is required to execute on the remote machine")
+                
+                if not password and not private_key:
+                    raise ValueError("Either password or private_key must be provided for authentication")
+                
+                try:
+                    # Import required libraries
+                    import paramiko
+                    import io
+                    import base64
+                    import time
+                    from socket import timeout as socket_timeout
+                except ImportError as e:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error: Missing required libraries. Please install paramiko: {str(e)}"
+                    )]
+                
+                # Construct the osascript command
+                escaped_script = apple_script.replace('"', '\\"')
+                command = f'osascript -e "{escaped_script}"'
+                logger.info(f"Constructed osascript command: {command}")
+                
+                # Initialize SSH client
+                ssh = paramiko.SSHClient()
+                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                
+                try:
+                    logger.info(f"Connecting to {host}:{port} as {username}")
+                    
+                    # Connect using either password or private key
+                    if private_key:
+                        # Decode private key if base64 encoded
+                        key_file = io.StringIO(base64.b64decode(private_key).decode('utf-8'))
+                        private_key_obj = paramiko.RSAKey.from_private_key(
+                            key_file,
+                            password=private_key_password if private_key_password else None
+                        )
+                        ssh.connect(
+                            hostname=host,
+                            port=port,
+                            username=username,
+                            pkey=private_key_obj,
+                            timeout=10
+                        )
+                    else:
+                        # Connect with password
+                        ssh.connect(
+                            hostname=host,
+                            port=port,
+                            username=username,
+                            password=password,
+                            timeout=10
+                        )
+                    
+                    logger.info(f"Successfully connected to {host}, executing AppleScript: {apple_script}")
+                    logger.debug(f"Full command: {command}")
+                    
+                    # Execute command with PTY (pseudo-terminal) for interactive commands
+                    channel = ssh.get_transport().open_session()
+                    channel.get_pty()
+                    channel.settimeout(timeout)
+                    channel.exec_command(command)
+                    
+                    # Read output
+                    output = ""
+                    stderr_output = ""
+                    
+                    # Read from stdout and stderr until closed or timeout
+                    start_time = time.time()
+                    while not channel.exit_status_ready():
+                        if channel.recv_ready():
+                            output += channel.recv(1024).decode('utf-8')
+                        if channel.recv_stderr_ready():
+                            stderr_output += channel.recv_stderr(1024).decode('utf-8')
+                        
+                        # Check timeout
+                        if time.time() - start_time > timeout:
+                            raise TimeoutError(f"Command execution timed out after {timeout} seconds")
+                        
+                        # Small sleep to prevent CPU spinning
+                        time.sleep(0.1)
+                    
+                    # Get any remaining output
+                    while channel.recv_ready():
+                        output += channel.recv(1024).decode('utf-8')
+                    while channel.recv_stderr_ready():
+                        stderr_output += channel.recv_stderr(1024).decode('utf-8')
+                    
+                    # Get exit status
+                    exit_status = channel.recv_exit_status()
+                    
+                    # Format response
+                    response = f"Command executed with exit status: {exit_status}\n\n"
+                    
+                    if output:
+                        response += f"STDOUT:\n{output}\n\n"
+                    
+                    if stderr_output:
+                        response += f"STDERR:\n{stderr_output}\n"
+                    
+                    return [types.TextContent(type="text", text=response)]
+                    
+                except paramiko.AuthenticationException:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Authentication failed for {username}@{host}:{port}. Check credentials."
+                    )]
+                except socket_timeout:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Connection timeout while connecting to {host}:{port}."
+                    )]
+                except TimeoutError as e:
+                    return [types.TextContent(
+                        type="text",
+                        text=str(e)
+                    )]
+                except Exception as e:
+                    return [types.TextContent(
+                        type="text",
+                        text=f"Error executing SSH command: {str(e)}"
+                    )]
+                finally:
+                    # Close SSH connection
+                    ssh.close()
+                    logger.info(f"SSH connection to {host} closed")
+            
             elif name == "remote_macos_send_keys":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
