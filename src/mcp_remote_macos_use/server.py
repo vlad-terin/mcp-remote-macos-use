@@ -1311,8 +1311,8 @@ Example sequence:
                 },
             ),
             types.Tool(
-                name="remote_macos_send_mouse",
-                description="Send mouse input to a remote MacOs machine using results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size",
+                name="remote_macos_mouse_move",
+                description="Move the mouse cursor to specified coordinates on a remote MacOs machine",
                 inputSchema={
                     "type": "object",
                     "properties": {
@@ -1320,14 +1320,81 @@ Example sequence:
                         "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
                         "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
                         "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position from results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position from results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size"},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
-                        "action": {
+                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "encryption": {
                             "type": "string", 
-                            "description": "Mouse action to perform", 
-                            "enum": ["move", "click", "double_click", "press", "release", "scroll_up", "scroll_down"],
-                            "default": "click"
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password", "x", "y"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_mouse_click",
+                description="Perform a mouse click at specified coordinates on a remote MacOs machine",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password", "x", "y"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_mouse_double_click",
+                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
+                        "encryption": {
+                            "type": "string", 
+                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
+                            "enum": ["prefer_on", "prefer_off", "server"],
+                            "default": "prefer_on"
+                        }
+                    },
+                    "required": ["host", "password", "x", "y"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_mouse_scroll",
+                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position"},
+                        "direction": {
+                            "type": "string", 
+                            "description": "Scroll direction", 
+                            "enum": ["up", "down"],
+                            "default": "down"
                         },
                         "encryption": {
                             "type": "string", 
@@ -1537,16 +1604,14 @@ Example sequence:
                 finally:
                     # Close VNC connection
                     vnc.close()
-                
-            elif name == "remote_macos_send_mouse":
+            
+            elif name == "remote_macos_mouse_move":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
                 username = arguments.get("username")
                 x = arguments.get("x")
                 y = arguments.get("y")
-                button = int(arguments.get("button", 1))
-                action = arguments.get("action", "click")
                 encryption = arguments.get("encryption", "prefer_on")
                 
                 if not host:
@@ -1568,47 +1633,157 @@ Example sequence:
                     return [types.TextContent(type="text", text=error_msg)]
                 
                 try:
-                    # Calculate button mask based on button number
-                    button_mask = 1 << (button - 1) if button >= 1 and button <= 8 else 0
-                    
                     # Ensure coordinates are within the screen bounds
                     x = max(0, min(x, vnc.width - 1))
                     y = max(0, min(y, vnc.height - 1))
                     
-                    result = False
-                    action_description = f"Action '{action}' at ({x}, {y})"
+                    # Move the mouse pointer
+                    result = vnc.send_pointer_event(x, y, 0)
                     
-                    if action == "move":
-                        # Just move the pointer without button press
-                        result = vnc.send_pointer_event(x, y, 0)
-                    elif action == "click":
-                        # Single click
-                        result = vnc.send_mouse_click(x, y, button, False)
-                    elif action == "double_click":
-                        # Double click
-                        result = vnc.send_mouse_click(x, y, button, True)
-                    elif action == "press":
-                        # Press and hold button
-                        result = vnc.send_pointer_event(x, y, button_mask)
-                    elif action == "release":
-                        # Release button
-                        result = vnc.send_pointer_event(x, y, 0)
-                    elif action == "scroll_up":
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"Mouse move to ({x}, {y}) {'succeeded' if result else 'failed'}"
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_click":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                button = int(arguments.get("button", 1))
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Ensure coordinates are within the screen bounds
+                    x = max(0, min(x, vnc.width - 1))
+                    y = max(0, min(y, vnc.height - 1))
+                    
+                    # Single click
+                    result = vnc.send_mouse_click(x, y, button, False)
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"Mouse click (button {button}) at ({x}, {y}) {'succeeded' if result else 'failed'}"
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_double_click":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                button = int(arguments.get("button", 1))
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Ensure coordinates are within the screen bounds
+                    x = max(0, min(x, vnc.width - 1))
+                    y = max(0, min(y, vnc.height - 1))
+                    
+                    # Double click
+                    result = vnc.send_mouse_click(x, y, button, True)
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"Mouse double-click (button {button}) at ({x}, {y}) {'succeeded' if result else 'failed'}"
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+                    
+            elif name == "remote_macos_mouse_scroll":
+                host = arguments.get("host")
+                port = int(arguments.get("port", 5900))
+                password = arguments.get("password")
+                username = arguments.get("username")
+                x = arguments.get("x")
+                y = arguments.get("y")
+                direction = arguments.get("direction", "down")
+                encryption = arguments.get("encryption", "prefer_on")
+                
+                if not host:
+                    raise ValueError("host is required to connect to remote MacOs machine")
+                
+                if not password:
+                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Ensure coordinates are within the screen bounds
+                    x = max(0, min(x, vnc.width - 1))
+                    y = max(0, min(y, vnc.height - 1))
+                    
+                    # Scroll
+                    if direction.lower() == "up":
                         # Scroll up (button 4)
                         result = vnc.send_pointer_event(x, y, 1 << 3)
                         time.sleep(0.1)
                         result = result and vnc.send_pointer_event(x, y, 0)
-                    elif action == "scroll_down":
+                    else:  # down
                         # Scroll down (button 5)
                         result = vnc.send_pointer_event(x, y, 1 << 4)
                         time.sleep(0.1)
                         result = result and vnc.send_pointer_event(x, y, 0)
-                    else:
-                        raise ValueError(f"Unknown mouse action: {action}")
                     
                     return [types.TextContent(
                         type="text", 
-                        text=f"Mouse {action_description} {'succeeded' if result else 'failed'}"
+                        text=f"Mouse scroll {direction} at ({x}, {y}) {'succeeded' if result else 'failed'}"
                     )]
                 finally:
                     # Close VNC connection
