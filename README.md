@@ -1,60 +1,77 @@
-# MCP Server - Vnc MacOs Use
-**The only MCP (Model Context Protocol) server that allow LLM to remote control any MacOS machines natively.**
+# MCP Server - Remote MacOs Use
+**The first open-source MCP server that enables AI to fully control remote macOS systems.**
 
-Support Any MacOS Version (If apple documentation doesn't lie)
-Apple authentication is hectic, you know them...you only other option is commercial closed-source RealVnc!
+**A direct alternative to OpenAI Operator, optimized specifically for autonomous AI agents with complete desktop capabilities, requiring no additional software installation.**
 
-**No setup required on MacOs except for enabling sharing.**
-
-## Why Critical
-- You can use any LLM with this MCP server. You don't have to stick to Claude computer-use.
-- No setup required on MacOs machines at all! As long as Screen Sharing is enabled, you can control any Mac machine using LLM. All current computer-use variants (including OOTB) requires running a python app in the background. Hectic!
-- Use great Claude Desktop as UI! (You typically found a just-okay python UI in other projects)
-
-** Limitation
-The results highly depending on how the driving model return the accurate screen coordinates. For now I need the Anthropic api key to use "computer-use-2024-10-22".
-If you are using other MCP Clients, you can skip this call and allow your driving model to do their things. Such as, gpt-4o may work just fine.
-
+[![Docker Pulls](https://img.shields.io/docker/pulls/buryhuang/mcp-remote-macos-use)](https://hub.docker.com/r/buryhuang/mcp-remote-macos-use)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## Features
-- Support for Apple Authentication (protocol 30) only for now
-- Compatible with macOS Screen Sharing
 
-## Prerequisites
-- Python 3.11 or higher
-- Network access to VNC server
+* **No Extra API Costs**: Free screen processing with your existing Claude Pro plan
+* **Minimal Setup**: Just enable Screen Sharing on the target Mac – no additional software needed
+* **Universal Compatibility**: Works with all macOS versions, current and future
+  
+## Why We Built This
+
+### Native macOS Experience Without Compromise
+The macOS native ecosystem remains unmatched in user experience today and will continue to be the gold standard for years to come. This is where human capabilities truly thrive, and now your AI can operate in this environment with the same fluency.
+
+### Open Architecture By Design
+* **Universal LLM Compatibility**: Work with any MCP Client of your choice
+* **Model Flexibility**: Seamlessly integrate with OpenAI, Anthropic, or any other LLM provider
+* **Future-Proof Integration**: Designed to evolve with the MCP ecosystem
+
+### Effortless Deployment
+* **Zero Setup on Target Machines**: No background applications or agents needed on macOS
+* **Screen Sharing is All You Need**: Control any Mac with Screen Sharing enabled
+* **Eliminate Backend Complexity**: Unlike other solutions that require running Python applications or background services
+
+### Streamlined Bootstrap Process
+* **Leverage Claude Desktop's Polished UI**: No need for developer-style Python interfaces
+* **Intuitive User Experience**: Interact with your AI-controlled Mac through a familiar, user-friendly interface
+* **Instant Productivity**: Start working immediately without configuration hassles
+ 
+## Architecture
+<img width="912" alt="remote_macos_use_system_architecture" src="https://github.com/user-attachments/assets/75ece060-90e2-4ad3-bb52-2c69427001dd" />
+
 
 ## Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/mcp-vnc-macos-use.git
-cd mcp-vnc-macos-use
-
-# Install dependencies
-pip install -e .
+- [Enable Screen Sharing on MacOs](https://support.apple.com/guide/remote-desktop/set-up-a-computer-running-vnc-software-apdbed09830/mac) **If you rent a mac from macstadium.com, you can skip this step**
+- [Connect to your remote MacOs](https://support.apple.com/guide/mac-help/share-the-screen-of-another-mac-mh14066/mac)
+- [Install Docker Desktop for local Mac](https://docs.docker.com/desktop/setup/install/mac-install/)
+- [Add this MCP server to Claude Desktop](https://modelcontextprotocol.io/quickstart/user)
+You can configure Claude Desktop to use the Docker image by adding the following to your Claude configuration:
+```json
+{
+  "mcpServers": {
+    "remote-macos-use": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "buryhuang/mcp-remote-macos-use:latest"
+      ]
+    }
+  }
+}
 ```
 
-### Dependencies
 
-This package requires the following dependencies:
-- Python 3.10 or higher
-- MCP (Model Context Protocol) >=1.4.1
-- python-dotenv >=1.0.1
-- Pillow >=10.0.0
-- pyDes >=2.0.1
-- cryptography >=44.0.0
-- anthropic >=0.15.0 (for the vnc_macos_plan_screen_actions tool)
-
-**Note:** The Anthropic package is a required dependency for this MCP server. It is used by the vnc_macos_plan_screen_actions tool to interact with Claude's computer use capability.
-
-## Docker
+## Developer Instruction
+### Clone the repo
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/mcp-remote-macos-use.git
+cd mcp-remote-macos-use
+```
 
 ### Building the Docker Image
 
 ```bash
 # Build the Docker image
-docker build -t mcp-vnc-macos-use .
+docker build -t mcp-remote-macos-use .
 ```
 
 ## Usage with Claude Desktop
@@ -66,13 +83,13 @@ You can configure Claude Desktop to use the Docker image by adding the following
 ```json
 {
   "mcpServers": {
-    "vnc-macos-use": {
+    "remote-macos-use": {
       "command": "docker",
       "args": [
         "run",
         "-i",
         "--rm",
-        "buryhuang/mcp-vnc-macos-use:latest"
+        "buryhuang/mcp-remote-macos-use:latest"
       ]
     }
   }
@@ -90,58 +107,78 @@ To publish the Docker image for multiple platforms, you can use the `docker buil
 
 2. **Build and push the image for multiple platforms**:
    ```bash
-   docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 -t buryhuang/mcp-vnc-macos-use:latest --push .
+   docker buildx build --platform linux/amd64,linux/arm64 -t buryhuang/mcp-remote-macos-use:latest --push .
    ```
 
 3. **Verify the image is available for the specified platforms**:
    ```bash
-   docker buildx imagetools inspect buryhuang/mcp-vnc-macos-use:latest
+   docker buildx imagetools inspect buryhuang/mcp-remote-macos-use:latest
    ```
 
 ## Usage
 
-The server provides VNC functionality through MCP tools.
+The server provides Remote MacOs functionality through MCP tools.
 
-### Starting the Server
+### Tools Specifications
 
-```bash
-mcp_server_vnc_macos_use
-```
+The server provides four main tools for remote MacOS control:
 
-### Using the Tools
-
-#### Capturing a Screenshot with vnc_get_screen
-
+#### remote_macos_get_screen
+Get a screenshot of the remote desktop. Example:
 ```json
 {
-  "host": "vnc-server-hostname-or-ip",
+  "host": "remote-macos-hostname-or-ip",
   "port": 5900,
-  "password": "your-vnc-password",
-  "username": "your-username"
+  "password": "remote-macos-password",
+  "username": "remote-macos-username",
+  "encryption": "prefer_on"
 }
 ```
 
-#### Using get_actions with Claude's Computer Use
-
-The `get_actions` tool allows you to leverage Anthropic's Claude models with computer use capability to generate actions based on prompts. This tool requires an Anthropic API key and a screenshot image in base64 format.
-
+#### remote_macos_send_keys
+Send keyboard input. Example:
 ```json
 {
-  "prompt": "Open Firefox and go to google.com",
-  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
-  "image_base64": "required_base64_encoded_screenshot"
+  "host": "remote-macos-hostname-or-ip",
+  "password": "remote-macos-password",
+  "text": "Hello world!",
+  "special_key": "enter",
+  "key_combination": "cmd+c"
 }
 ```
 
-**Note:** The `image_base64` parameter is required - Claude needs visual context to interact with the computer interface. You can typically get this by first calling the `vnc_macos_get_screen` tool, which returns a base64-encoded screenshot that can be used directly with the `get_actions` tool.
+#### remote_macos_send_mouse
+Send mouse input. Example:
+```json
+{
+  "host": "remote-macos-hostname-or-ip",
+  "password": "remote-macos-password",
+  "x": 500,
+  "y": 300,
+  "button": 1,
+  "action": "click"
+}
+```
 
-This tool uses Claude 3.5 Sonnet (claude-3-5-sonnet-20241022) and Anthropic's computer use functionality. The tool returns the generated actions from Claude with computer use capability. You can then use these actions to guide the VNC server interactions.
+#### remote_macos_scale_coordinates
+Scale coordinates between different screen sizes. Example:
+```json
+{
+  "host": "remote-macos-hostname-or-ip",
+  "password": "remote-macos-password",
+  "source_width": 1366,
+  "source_height": 768,
+  "x": 500,
+  "y": 300
+}
+```
+
+All tools support Apple Authentication (protocol 30) and require at minimum a host and password.
 
 ## Limitations
 
 - **Authentication Support**: 
   - Only Apple Authentication (protocol 30) is supported
-- Currently only supports capturing screenshots; does not support mouse or keyboard input
 
 ## Security Note
 
@@ -160,7 +197,7 @@ Here's the information converted to a markdown table:
 | macOS 11 to macOS 12 | OS X 10.11 or earlier | DH 1024-bit | DH 1024-bit, 128-bit AES | Diffie-Hellman Key agreement protocol with a 512-bit prime | Diffie-Hellman Key agreement protocol with a 512-bit prime |  30 |
 
 
-Always use secure, authenticated connections when accessing remote VNC servers. This tool should only be used with servers you trust and have permission to access.
+Always use secure, authenticated connections when accessing remote remote MacOs machines. This tool should only be used with servers you trust and have permission to access.
 
 ## License
 

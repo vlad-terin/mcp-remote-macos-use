@@ -4,10 +4,10 @@ import logging
 from . import server
 
 logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger('mcp_server_vnc_macos_use')
+logger = logging.getLogger('mcp_remote_macos_use')
 
 def main():
-    logger.debug("Starting mcp_server_vnc_macos_use main()")
+    logger.debug("Starting mcp_remote_macos_use main()")
     parser = argparse.ArgumentParser(description='VNC MCP Server')
     args = parser.parse_args()
     

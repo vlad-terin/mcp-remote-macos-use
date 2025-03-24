@@ -11,12 +11,6 @@ import pyDes
 import json
 from base64 import b64encode
 from datetime import datetime
-# Import Anthropic for the computer use capability
-from anthropic import Anthropic
-from anthropic.types.beta import BetaMessageParam
-from anthropic import APIResponse
-from anthropic.types.beta import BetaMessage
-from typing import cast
 
 # Import MCP server libraries
 from mcp.server.models import InitializationOptions
@@ -29,19 +23,19 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-logger = logging.getLogger('mcp_server_vnc_macos_use')
+logger = logging.getLogger('mcp_remote_macos_use')
 logger.setLevel(logging.DEBUG)
 
 
 async def capture_vnc_screen(host: str, port: int, password: str, username: Optional[str] = None, 
                              encryption: str = "prefer_on") -> Tuple[bool, Optional[bytes], Optional[str], Optional[Tuple[int, int]]]:
-    """Capture a screenshot from a VNC server.
+    """Capture a screenshot from a remote MacOs machine.
     
     Args:
-        host: VNC server hostname or IP address
-        port: VNC server port
-        password: VNC server password
-        username: VNC server username (optional)
+        host: remote MacOs machine hostname or IP address
+        port: remote MacOs machine port
+        password: remote MacOs machine password
+        username: remote MacOs machine username (optional)
         encryption: Encryption preference (default: "prefer_on")
         
     Returns:
@@ -51,18 +45,18 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
         - error_message: Error message if unsuccessful, None otherwise
         - dimensions: Tuple of (width, height) if successful, None otherwise
     """
-    logger.debug(f"Connecting to VNC server at {host}:{port} with encryption: {encryption}")
+    logger.debug(f"Connecting to remote MacOs machine at {host}:{port} with encryption: {encryption}")
     
     # Initialize VNC client
     vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
     
     try:
-        # Connect to VNC server
+        # Connect to remote MacOs machine
         success, error_message = vnc.connect()
         if not success:
-            detailed_error = f"Failed to connect to VNC server at {host}:{port}. {error_message}\n"
+            detailed_error = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}\n"
             detailed_error += "This VNC client only supports Apple Authentication (protocol 30). "
-            detailed_error += "Please ensure the VNC server supports this protocol. "
+            detailed_error += "Please ensure the remote MacOs machine supports this protocol. "
             detailed_error += "For macOS, enable Screen Sharing in System Preferences > Sharing."
             return False, None, detailed_error, None
 
@@ -70,7 +64,7 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
         screen_data = vnc.capture_screen()
         
         if not screen_data:
-            return False, None, f"Failed to capture screenshot from VNC server at {host}:{port}", None
+            return False, None, f"Failed to capture screenshot from remote MacOs machine at {host}:{port}", None
         
         # Save original dimensions for reference
         original_dims = (vnc.width, vnc.height)
@@ -183,17 +177,17 @@ class Encoding:
     DESKTOP_SIZE = -223
 
 class VNCClient:
-    """VNC client implementation to connect to VNC servers and capture screenshots."""
+    """VNC client implementation to connect to remote MacOs machines and capture screenshots."""
     
     def __init__(self, host: str, port: int = 5900, password: Optional[str] = None, username: Optional[str] = None, 
                  encryption: str = "prefer_on"):
         """Initialize VNC client with connection parameters.
         
         Args:
-            host: VNC server hostname or IP address
-            port: VNC server port (default: 5900)
-            password: VNC server password (optional)
-            username: VNC server username (optional, only used with certain authentication methods)
+            host: remote MacOs machine hostname or IP address
+            port: remote MacOs machine port (default: 5900)
+            password: remote MacOs machine password (optional)
+            username: remote MacOs machine username (optional, only used with certain authentication methods)
             encryption: Encryption preference, one of "prefer_on", "prefer_off", "server" (default: "prefer_on")
         """
         self.host = host
@@ -212,7 +206,7 @@ class VNCClient:
             logger.debug(f"Username authentication enabled for: {username}")
         
     def connect(self) -> Tuple[bool, Optional[str]]:
-        """Connect to the VNC server and perform the RFB handshake.
+        """Connect to the remote MacOs machine and perform the RFB handshake.
         
         Returns:
             Tuple[bool, Optional[str]]: (success, error_message) where success is True if connection
@@ -220,7 +214,7 @@ class VNCClient:
                                         failure if success is False
         """
         try:
-            logger.info(f"Attempting connection to VNC server at {self.host}:{self.port}")
+            logger.info(f"Attempting connection to remote MacOs machine at {self.host}:{self.port}")
             logger.debug(f"Connection parameters: encryption={self.encryption}, username={'set' if self.username else 'not set'}, password={'set' if self.password else 'not set'}")
             
             # Create socket and connect
@@ -232,7 +226,7 @@ class VNCClient:
                 self.socket.connect((self.host, self.port))
                 logger.info(f"Successfully established TCP connection to {self.host}:{self.port}")
             except ConnectionRefusedError:
-                error_msg = f"Connection refused by {self.host}:{self.port}. Ensure VNC server is running and port is correct."
+                error_msg = f"Connection refused by {self.host}:{self.port}. Ensure remote MacOs machine is running and port is correct."
                 logger.error(error_msg)
                 return False, error_msg
             except socket.timeout:
@@ -518,7 +512,7 @@ class VNCClient:
                 self.name = name_data.decode('utf-8', errors='replace')
                 logger.debug(f"Server name: {self.name}")
             
-            logger.info(f"Successfully connected to VNC server: {self.name}")
+            logger.info(f"Successfully connected to remote MacOs machine: {self.name}")
             logger.debug(f"Screen dimensions: {self.width}x{self.height}")
             logger.debug(f"Initial pixel format: {self.pixel_format}")
             
@@ -674,14 +668,14 @@ class VNCClient:
             img.paste(raw_img, (x, y))
     
     def capture_screen(self) -> Optional[bytes]:
-        """Capture a screenshot from the VNC server.
+        """Capture a screenshot from the remote MacOs machine.
         
         Returns:
             bytes: PNG image data if successful, None otherwise
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return None
             
             # Create new image based on framebuffer dimensions
@@ -781,7 +775,7 @@ class VNCClient:
             return None
     
     def close(self):
-        """Close the connection to the VNC server."""
+        """Close the connection to the remote MacOs machine."""
         if self.socket:
             try:
                 self.socket.close()
@@ -790,7 +784,7 @@ class VNCClient:
             self.socket = None
 
     def send_key_event(self, key: int, down: bool) -> bool:
-        """Send a key event to the VNC server.
+        """Send a key event to the remote MacOs machine.
         
         Args:
             key: X11 keysym value representing the key
@@ -801,7 +795,7 @@ class VNCClient:
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return False
             
             # Message type 4 = KeyEvent
@@ -825,7 +819,7 @@ class VNCClient:
             return False
     
     def send_pointer_event(self, x: int, y: int, button_mask: int) -> bool:
-        """Send a pointer (mouse) event to the VNC server.
+        """Send a pointer (mouse) event to the remote MacOs machine.
         
         Args:
             x: X position (0 to framebuffer_width-1)
@@ -844,7 +838,7 @@ class VNCClient:
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return False
             
             # Ensure coordinates are within framebuffer bounds
@@ -886,7 +880,7 @@ class VNCClient:
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return False
             
             # Calculate button mask
@@ -940,7 +934,7 @@ class VNCClient:
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return False
             
             # Standard ASCII to X11 keysym mapping for printable ASCII characters
@@ -1006,7 +1000,7 @@ class VNCClient:
         """
         try:
             if not self.socket:
-                logger.error("Not connected to VNC server")
+                logger.error("Not connected to remote MacOs machine")
                 return False
             
             # Press all keys in sequence
@@ -1026,68 +1020,27 @@ class VNCClient:
             return False
 
 
-def call_anthropic_api(api_key: str, messages: list, display_width: int = 1440, display_height: int = 900):
-    """Call the Anthropic API using the with_raw_response pattern.
-    
-    Args:
-        api_key: Anthropic API key
-        messages: List of messages to send to the API
-        system: Optional system prompt
-        display_width: Width of the display for computer use capability
-        display_height: Height of the display for computer use capability
-        
-    Returns:
-        The parsed response from the API
-    """
-    client = Anthropic(api_key=api_key)
-    
-    # Call the API synchronously
-    raw_response = client.beta.messages.with_raw_response.create(
-        max_tokens=4096,
-        messages=messages,
-        model="claude-3-5-sonnet-20241022",
-        system=f"""<SYSTEM_CAPABILITY>
-* You are utilizing a Windows system with internet access.
-* The current date is {datetime.today().strftime('%A, %B %d, %Y')}.
-</SYSTEM_CAPABILITY>""",
-        tools=[{
-            "name": "computer", 
-            "type": "computer_20241022",
-            "display_width_px": display_width,
-            "display_height_px": display_height,
-            "display_number": 0
-        }],
-        betas=["computer-use-2024-10-22"],
-    )
-    
-    # Parse the response
-    response = cast(APIResponse[BetaMessage], raw_response).parse()
-    logger.debug(f"Anthropic API response: {response}")
-    
-    return response
-
-
 async def main():
-    """Run the VNC MCP server."""
-    logger.info("VNC computer use server starting")
-    server = Server("vnc-client")
+    """Run the Remote MacOS MCP server."""
+    logger.info("Remote MacOS computer use server starting")
+    server = Server("remote-macos-client")
 
     @server.list_resources()
     async def handle_list_resources() -> list[types.Resource]:
         return [
             types.Resource(
-                name="vnc-controls",
-                description="Documentation for VNC keyboard and mouse controls",
+                name="remote-macos-controls",
+                description="Available keyboard and mouse controls to send to a remote MacOS computer",
                 uri=types.Uri(scheme="vnc", path="controls")
             )
         ]
 
     @server.read_resource()
     async def handle_read_resource(uri: types.AnyUrl) -> str:
-        if uri.scheme != "vnc":
+        if uri.scheme != "remote-macos":
             raise ValueError(f"Unsupported URI scheme: {uri.scheme}")
 
-        path = str(uri).replace("vnc://", "")
+        path = str(uri).replace("remote-macos://", "")
         
         if path == "controls":
             # Documentation for VNC controls
@@ -1315,15 +1268,15 @@ Example sequence:
         """List available tools"""
         return [
             types.Tool(
-                name="vnc_macos_get_screen",
-                description="Connect to a VNC server and get a screenshot of the remote desktop. Only supports Apple Authentication (protocol 30).",
+                name="remote_macos_get_screen",
+                description="Connect to a remote MacOs machine and get a screenshot of the remote desktop. Only supports Apple Authentication (protocol 30).",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
-                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
-                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "encryption": {
                             "type": "string", 
                             "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
@@ -1335,15 +1288,15 @@ Example sequence:
                 },
             ),
             types.Tool(
-                name="vnc_macos_send_keys",
-                description="Send keyboard input to a VNC server",
+                name="remote_macos_send_keys",
+                description="Send keyboard input to a remote MacOs machine",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
-                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
-                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "text": {"type": "string", "description": "Text to send as keystrokes"},
                         "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
                         "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
@@ -1358,17 +1311,17 @@ Example sequence:
                 },
             ),
             types.Tool(
-                name="vnc_macos_send_mouse",
-                description="Send mouse input to a VNC server using results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size",
+                name="remote_macos_send_mouse",
+                description="Send mouse input to a remote MacOs machine using results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
-                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
-                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
-                        "x": {"type": "integer", "description": "X coordinate for mouse position from results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position from results from vnc_macos_scale_coordinates to scale coordinates from a reference screen size to the actual VNC server screen size"},
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position from results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position from results from remote_macos_scale_coordinates to scale coordinates from a reference screen size to the actual remote MacOs machine screen size"},
                         "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
                         "action": {
                             "type": "string", 
@@ -1387,15 +1340,15 @@ Example sequence:
                 },
             ),
             types.Tool(
-                name="vnc_macos_scale_coordinates",
-                description="Scale coordinates from a reference screen size to the actual VNC server screen size",
+                name="remote_macos_scale_coordinates",
+                description="Scale coordinates from a reference screen size to the actual remote MacOs machine screen size",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
-                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
-                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
+                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
+                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
+                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
+                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "source_width": {"type": "integer", "description": "Width of the reference screen"},
                         "source_height": {"type": "integer", "description": "Height of the reference screen"},
                         "x": {"type": "integer", "description": "X coordinate on the reference screen"},
@@ -1410,28 +1363,6 @@ Example sequence:
                     "required": ["host", "password", "source_width", "source_height", "x", "y"]
                 },
             ),
-            types.Tool(
-                name="vnc_macos_plan_screen_actions",
-                description="Take the input of prompts as goal, and the screenshot of the screen and plans the screen actions, get the accurate coordinates to take to complete the task",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "prompt": {"type": "string", "description": "The goal of the task"},
-                        "anthropic_api_key": {"type": "string", "description": "Anthropic API key for authentication"},
-                        "host": {"type": "string", "description": "VNC server hostname or IP address"},
-                        "port": {"type": "integer", "description": "VNC server port (default: 5900)"},
-                        "password": {"type": "string", "description": "VNC server password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "VNC server username (optional, recommended for Apple Authentication)"},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["prompt", "anthropic_api_key", "host", "password"]
-                },
-            ),
         ]
 
     @server.call_tool()
@@ -1443,7 +1374,7 @@ Example sequence:
             if not arguments:
                 raise ValueError(f"Missing arguments for {name}")
             
-            if name == "vnc_macos_get_screen":
+            if name == "remote_macos_get_screen":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
@@ -1451,7 +1382,7 @@ Example sequence:
                 encryption = arguments.get("encryption", "prefer_on")  # Default to "prefer_on" for macOS compatibility
                 
                 if not host:
-                    raise ValueError("host is required to connect to VNC server")
+                    raise ValueError("host is required to connect to remote MacOs machine")
                 
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
@@ -1474,7 +1405,7 @@ Example sequence:
                         type="image",
                         data=base64_data,
                         mimeType="image/png",
-                        alt_text=f"Screenshot from VNC server at {host}:{port}"
+                        alt_text=f"Screenshot from remote MacOs machine at {host}:{port}"
                     ),
                     types.TextContent(
                         type="text",
@@ -1482,7 +1413,7 @@ Example sequence:
                     )
                 ]
                 
-            elif name == "vnc_macos_send_keys":
+            elif name == "remote_macos_send_keys":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
@@ -1493,7 +1424,7 @@ Example sequence:
                 encryption = arguments.get("encryption", "prefer_on")
                 
                 if not host:
-                    raise ValueError("host is required to connect to VNC server")
+                    raise ValueError("host is required to connect to remote MacOs machine")
                 
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
@@ -1504,10 +1435,10 @@ Example sequence:
                 # Initialize VNC client
                 vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
                 
-                # Connect to VNC server
+                # Connect to remote MacOs machine
                 success, error_message = vnc.connect()
                 if not success:
-                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
                     return [types.TextContent(type="text", text=error_msg)]
                 
                 try:
@@ -1607,7 +1538,7 @@ Example sequence:
                     # Close VNC connection
                     vnc.close()
                 
-            elif name == "vnc_macos_send_mouse":
+            elif name == "remote_macos_send_mouse":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
@@ -1619,7 +1550,7 @@ Example sequence:
                 encryption = arguments.get("encryption", "prefer_on")
                 
                 if not host:
-                    raise ValueError("host is required to connect to VNC server")
+                    raise ValueError("host is required to connect to remote MacOs machine")
                 
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
@@ -1630,10 +1561,10 @@ Example sequence:
                 # Initialize VNC client
                 vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
                 
-                # Connect to VNC server
+                # Connect to remote MacOs machine
                 success, error_message = vnc.connect()
                 if not success:
-                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
                     return [types.TextContent(type="text", text=error_msg)]
                 
                 try:
@@ -1683,7 +1614,7 @@ Example sequence:
                     # Close VNC connection
                     vnc.close()
                 
-            elif name == "vnc_macos_scale_coordinates":
+            elif name == "remote_macos_scale_coordinates":
                 host = arguments.get("host")
                 port = int(arguments.get("port", 5900))
                 password = arguments.get("password")
@@ -1695,7 +1626,7 @@ Example sequence:
                 encryption = arguments.get("encryption", "prefer_on")
                 
                 if not host:
-                    raise ValueError("host is required to connect to VNC server")
+                    raise ValueError("host is required to connect to remote MacOs machine")
                 
                 if not password:
                     raise ValueError("password is required for Apple Authentication (protocol 30)")
@@ -1713,10 +1644,10 @@ Example sequence:
                 # Initialize VNC client to get target screen dimensions
                 vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
                 
-                # Connect to VNC server to get screen dimensions
+                # Connect to remote MacOs machine to get screen dimensions
                 success, error_message = vnc.connect()
                 if not success:
-                    error_msg = f"Failed to connect to VNC server at {host}:{port}. {error_message}"
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
                     return [types.TextContent(type="text", text=error_msg)]
                 
                 try:
@@ -1763,91 +1694,6 @@ Scale factors: {response['scale_factors']['x']:.4f}x, {response['scale_factors']
                     # Close VNC connection
                     vnc.close()
                 
-            elif name == "vnc_macos_plan_screen_actions":
-                prompt = arguments.get("prompt")
-                anthropic_api_key = arguments.get("anthropic_api_key")
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not prompt:
-                    raise ValueError("prompt is required")
-                    
-                if not anthropic_api_key:
-                    raise ValueError("anthropic_api_key is required")
-                
-                if not host:
-                    raise ValueError("host is required to connect to VNC server")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                # Capture screen using helper method
-                success, screen_data, error_message, dimensions = await capture_vnc_screen(
-                    host=host, port=port, password=password, username=username, encryption=encryption
-                )
-                
-                if not success:
-                    return [types.TextContent(type="text", text=error_message)]
-                
-                # Get the actual display dimensions from the VNC connection
-                width, height = dimensions
-                
-                # Encode image in base64
-                image_base64 = base64.b64encode(screen_data).decode('utf-8')
-                
-                logger.debug(f"Calling Anthropic API with model: claude-3-5-sonnet-20241022, screen dimensions: {width}x{height}")
-                
-                try:
-                    # Create message with text and image content
-                    messages = [
-                        {
-                            "role": "user", 
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image", 
-                                    "source": {
-                                        "type": "base64", 
-                                        "media_type": "image/png", 
-                                        "data": image_base64
-                                    }
-                                }
-                            ]
-                        }
-                    ]
-                    
-                    # Call the Anthropic API using the helper function
-                    response = call_anthropic_api(
-                        api_key=anthropic_api_key,
-                        messages=messages,
-                        display_width=width,
-                        display_height=height
-                    )
-                    
-                    # Extract response text
-                    response_text = ""
-                    
-                    # Include token usage information if available
-                    if hasattr(response, "usage"):
-                        response_text += f"Token Usage: {json.dumps(response.usage.model_dump(), indent=2)}\n\n"
-                    
-                    # Process content from the response
-                    for content_block in response.content:
-                        if content_block.type == "text":
-                            response_text += content_block.text
-                        elif content_block.type == "tool_use":
-                            response_text += f"\nTool Use Request:\n{json.dumps(content_block.input, indent=2)}\n"
-                    
-                    return [types.TextContent(type="text", text=response_text)]
-                    
-                except Exception as e:
-                    error_msg = f"Error calling Anthropic API: {str(e)}"
-                    logger.error(error_msg, exc_info=True)
-                    return [types.TextContent(type="text", text=error_msg)]
-            
             else:
                 raise ValueError(f"Unknown tool: {name}")
 

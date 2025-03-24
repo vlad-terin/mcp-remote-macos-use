@@ -1,5 +1,5 @@
 [project]
-name = "mcp_server_vnc_macos_use"
+name = "mcp_remote_macos_use"
 version = "0.1.0"
 description = "A simple VNC MCP server for remote computer control"
 readme = "README.md"
@@ -14,7 +14,7 @@ build-backend = "hatchling.build"
 dev-dependencies = ["pyright>=1.1.389"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mcp_server_vnc_macos_use"]
+packages = ["src/mcp_remote_macos_use"]
 
 [project.scripts]
-mcp_server_vnc_macos_use = "mcp_server_vnc_macos_use:main" 
+mcp_remote_macos_use = "mcp_remote_macos_use:main" 
