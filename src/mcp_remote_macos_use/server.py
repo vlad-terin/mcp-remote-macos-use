@@ -9,8 +9,10 @@ from PIL import Image
 import asyncio
 import pyDes
 import json
+import os
 from base64 import b64encode
 from datetime import datetime
+import sys
 
 # Import MCP server libraries
 from mcp.server.models import InitializationOptions
@@ -25,6 +27,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger('mcp_remote_macos_use')
 logger.setLevel(logging.DEBUG)
+
+# Load environment variables for VNC connection
+MACOS_HOST = os.environ.get('MACOS_HOST', '')
+MACOS_PORT = int(os.environ.get('MACOS_PORT', '5900'))
+MACOS_USERNAME = os.environ.get('MACOS_USERNAME', '')
+MACOS_PASSWORD = os.environ.get('MACOS_PASSWORD', '')
+VNC_ENCRYPTION = os.environ.get('VNC_ENCRYPTION', 'prefer_on')
+
+# Log environment variable status (without exposing actual values)
+logger.info(f"MACOS_HOST from environment: {'Set' if MACOS_HOST else 'Not set'}")
+logger.info(f"MACOS_PORT from environment: {MACOS_PORT}")
+logger.info(f"MACOS_USERNAME from environment: {'Set' if MACOS_USERNAME else 'Not set'}")
+logger.info(f"MACOS_PASSWORD from environment: {'Set' if MACOS_PASSWORD else 'Not set (Required)'}")
+logger.info(f"VNC_ENCRYPTION from environment: {VNC_ENCRYPTION}")
+
+# Validate required environment variables
+if not MACOS_HOST:
+    logger.error("MACOS_HOST environment variable is required but not set")
+    raise ValueError("MACOS_HOST environment variable is required but not set")
+
+if not MACOS_PASSWORD:
+    logger.error("MACOS_PASSWORD environment variable is required but not set")
+    raise ValueError("MACOS_PASSWORD environment variable is required but not set")
 
 
 async def capture_vnc_screen(host: str, port: int, password: str, username: Optional[str] = None, 
@@ -101,7 +126,7 @@ async def capture_vnc_screen(host: str, port: int, password: str, username: Opti
         vnc.close()
 
 
-def encrypt_vnc_password(password: str, challenge: bytes) -> bytes:
+def encrypt_MACOS_PASSWORD(password: str, challenge: bytes) -> bytes:
     """Encrypt VNC password for authentication.
     
     Args:
@@ -1027,240 +1052,10 @@ async def main():
 
     @server.list_resources()
     async def handle_list_resources() -> list[types.Resource]:
-        return [
-            types.Resource(
-                name="remote-macos-controls",
-                description="Available keyboard and mouse controls to send to a remote MacOS computer",
-                uri=types.Uri(scheme="vnc", path="controls")
-            )
-        ]
+        return []
 
     @server.read_resource()
     async def handle_read_resource(uri: types.AnyUrl) -> str:
-        if uri.scheme != "remote-macos":
-            raise ValueError(f"Unsupported URI scheme: {uri.scheme}")
-
-        path = str(uri).replace("remote-macos://", "")
-        
-        if path == "controls":
-            # Documentation for VNC controls
-            doc = """# VNC Remote Control Documentation
-
-## Keyboard Controls
-
-### Special Keys
-The following special keys are supported:
-
-| Key Name | Description |
-|----------|-------------|
-| enter, return | Enter/Return key |
-| backspace | Backspace key |
-| tab | Tab key |
-| escape, esc | Escape key |
-| delete, del | Delete key |
-| home | Home key |
-| end | End key |
-| page_up | Page Up key |
-| page_down | Page Down key |
-| left | Left Arrow key |
-| up | Up Arrow key |
-| right | Right Arrow key |
-| down | Down Arrow key |
-| f1-f12 | Function keys F1 through F12 |
-| space | Space bar |
-
-### Modifiers for Key Combinations
-The following modifier keys are supported in key combinations:
-
-| Modifier | Description |
-|----------|-------------|
-| shift | Shift key |
-| ctrl, control | Control key |
-| alt | Alt key |
-| meta, cmd, command, super | Command/Meta/Windows key |
-
-### Examples of Using Keyboard Controls
-
-#### Sending Text
-To send text, use the `text` parameter with the text string to send:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "text": "Hello world!"
-}
-```
-
-#### Sending Special Keys
-To send a special key, use the `special_key` parameter:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "special_key": "enter"
-}
-```
-
-#### Sending Key Combinations
-To send key combinations, use the `key_combination` parameter with the keys separated by `+`:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "key_combination": "cmd+c"
-}
-```
-
-Common key combinations:
-- `cmd+c`: Copy
-- `cmd+v`: Paste
-- `cmd+a`: Select all
-- `cmd+q`: Quit application
-- `cmd+space`: Open Spotlight (on macOS)
-- `ctrl+alt+delete`: System attention (on Windows)
-
-## Mouse Controls
-
-### Mouse Actions
-The following mouse actions are supported:
-
-| Action | Description |
-|--------|-------------|
-| move | Move the mouse pointer without clicking |
-| click | Perform a single click |
-| double_click | Perform a double-click |
-| press | Press and hold a mouse button |
-| release | Release a previously pressed mouse button |
-| scroll_up | Scroll up (mouse wheel up) |
-| scroll_down | Scroll down (mouse wheel down) |
-
-### Mouse Buttons
-The following mouse buttons are supported:
-
-| Button Number | Description |
-|--------------|-------------|
-| 1 | Left button (default) |
-| 2 | Middle button |
-| 3 | Right button |
-| 4 | Scroll up (used internally) |
-| 5 | Scroll down (used internally) |
-| 6 | Scroll left (used internally) |
-| 7 | Scroll right (used internally) |
-
-### Examples of Using Mouse Controls
-
-#### Moving the Mouse
-To move the mouse pointer without clicking:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 500,
-  "y": 300,
-  "action": "move"
-}
-```
-
-#### Clicking at a Position
-To perform a single left-click at a position:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 500,
-  "y": 300,
-  "action": "click",
-  "button": 1
-}
-```
-
-#### Right-Clicking
-To perform a right-click:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 500,
-  "y": 300,
-  "action": "click",
-  "button": 3
-}
-```
-
-#### Double-Clicking
-To perform a double-click:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 500,
-  "y": 300,
-  "action": "double_click"
-}
-```
-
-#### Scrolling
-To scroll down:
-```json
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 500,
-  "y": 300,
-  "action": "scroll_down"
-}
-```
-
-## Advanced Usage: Drag and Drop
-
-To perform a drag and drop operation, you need to:
-1. Move to the source position
-2. Press the mouse button
-3. Move to the target position
-4. Release the mouse button
-
-Example sequence:
-```json
-// Step 1: Move to source
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 200,
-  "y": 200,
-  "action": "move"
-}
-
-// Step 2: Press the button
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 200,
-  "y": 200,
-  "action": "press",
-  "button": 1
-}
-
-// Step 3: Move to target
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 400,
-  "y": 300,
-  "action": "move"
-}
-
-// Step 4: Release the button
-{
-  "host": "192.168.1.100",
-  "password": "your_password",
-  "x": 400,
-  "y": 300,
-  "action": "release"
-}
-```
-"""
-            return doc
-        
         return ""
 
     @server.list_tools()
@@ -1269,169 +1064,101 @@ Example sequence:
         return [
             types.Tool(
                 name="remote_macos_get_screen",
-                description="Connect to a remote MacOs machine and get a screenshot of the remote desktop. Only supports Apple Authentication (protocol 30).",
+                description="Connect to a remote MacOs machine and get a screenshot of the remote desktop. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
-                    "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
-                    },
-                    "required": ["host", "username", "password"]
+                    "properties": {}
                 },
             ),
             types.Tool(
                 name="remote_macos_mouse_scroll",
-                description="Run Apple Script on a remote MacOs machine to scroll the mouse wheel.",
+                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "SSH port (default: 22)"},
-                        "username": {"type": "string", "description": "SSH username for authentication"},
-                        "password": {"type": "string", "description": "SSH password for authentication (used if private_key not provided)"},
-                        "private_key": {"type": "string", "description": "Private key content for SSH authentication (base64 encoded, used if password not provided)"},
-                        "private_key_password": {"type": "string", "description": "Password for encrypted private key (if needed)"},
-                        "apple_script": {"type": "string", "description": "The one-line apple script that will implement mouse scroll operations."},
+                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
+                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
+                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
+                        "direction": {
+                            "type": "string", 
+                            "description": "Scroll direction", 
+                            "enum": ["up", "down"],
+                            "default": "down"
+                        }
+                    },
+                    "required": ["x", "y"]
+                },
+            ),
+            types.Tool(
+                name="remote_macos_apple_script",
+                description="Run Apple Script on a remote MacOs machine via SSH. Uses environment variables for connection details.",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "apple_script": {"type": "string", "description": "The one-line apple script that will execute on the remote machine."},
                         "timeout": {"type": "integer", "description": "Command execution timeout in seconds (default: 60)"}
                     },
-                    "required": ["host", "username", "password", "apple_script"]
+                    "required": ["apple_script"]
                 },
             ),
             types.Tool(
                 name="remote_macos_send_keys",
-                description="Send keyboard input to a remote MacOs machine",
+                description="Send keyboard input to a remote MacOs machine. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "text": {"type": "string", "description": "Text to send as keystrokes"},
                         "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
-                        "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
+                        "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"}
                     },
-                    "required": ["host", "password"]
+                    "required": []
                 },
             ),
             types.Tool(
                 name="remote_macos_mouse_move",
-                description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+                description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
                         "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
+                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768}
                     },
-                    "required": ["host", "username", "password", "x", "y"]
+                    "required": ["x", "y"]
                 },
             ),
             types.Tool(
                 name="remote_macos_mouse_click",
-                description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+                description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
                         "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
                         "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
+                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
                     },
-                    "required": ["host", "username", "password", "x", "y"]
+                    "required": ["x", "y"]
                 },
             ),
             types.Tool(
                 name="remote_macos_mouse_double_click",
-                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
+                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-                        "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-                        "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-                        "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
                         "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
                         "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
                         "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
                         "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1},
-                        "encryption": {
-                            "type": "string", 
-                            "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-                            "enum": ["prefer_on", "prefer_off", "server"],
-                            "default": "prefer_on"
-                        }
+                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
                     },
-                    "required": ["host", "username", "password", "x", "y"]
+                    "required": ["x", "y"]
                 },
             ),
-            # types.Tool(
-            #     name="remote_macos_mouse_scroll",
-            #     description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling",
-            #     inputSchema={
-            #         "type": "object",
-            #         "properties": {
-            #             "host": {"type": "string", "description": "remote MacOs machine hostname or IP address"},
-            #             "port": {"type": "integer", "description": "remote MacOs machine port (default: 5900)"},
-            #             "password": {"type": "string", "description": "remote MacOs machine password (required for Apple Authentication)"},
-            #             "username": {"type": "string", "description": "remote MacOs machine username (optional, recommended for Apple Authentication)"},
-            #             "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-            #             "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-            #             "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-            #             "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-            #             "direction": {
-            #                 "type": "string", 
-            #                 "description": "Scroll direction", 
-            #                 "enum": ["up", "down"],
-            #                 "default": "down"
-            #             },
-            #             "encryption": {
-            #                 "type": "string", 
-            #                 "description": "Encryption preference (only affects negotiation if server offers multiple auth methods)", 
-            #                 "enum": ["prefer_on", "prefer_off", "server"],
-            #                 "default": "prefer_on"
-            #             }
-            #         },
-            #         "required": ["host", "password", "x", "y"]
-            #     },
-            # ),
         ]
 
     @server.call_tool()
@@ -1441,20 +1168,15 @@ Example sequence:
         """Handle tool execution requests"""
         try:
             if not arguments:
-                raise ValueError(f"Missing arguments for {name}")
+                arguments = {}
             
             if name == "remote_macos_get_screen":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                encryption = arguments.get("encryption", "prefer_on")  # Default to "prefer_on" for macOS compatibility
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
                 
                 # Capture screen using helper method
                 success, screen_data, error_message, dimensions = await capture_vnc_screen(
@@ -1486,27 +1208,91 @@ Example sequence:
                 ]
                 
             elif name == "remote_macos_mouse_scroll":
-                # Extract arguments
-                host = arguments.get("host")
-                port = int(arguments.get("port", 22))
-                username = arguments.get("username")
-                password = arguments.get("password")
-                private_key = arguments.get("private_key")
-                private_key_password = arguments.get("private_key_password")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
+                
+                # Get required parameters from arguments
+                x = arguments.get("x")
+                y = arguments.get("y")
+                source_width = int(arguments.get("source_width", 1366))
+                source_height = int(arguments.get("source_height", 768))
+                direction = arguments.get("direction", "down")
+                
+                if x is None or y is None:
+                    raise ValueError("x and y coordinates are required")
+                
+                # Ensure source dimensions are positive
+                if source_width <= 0 or source_height <= 0:
+                    raise ValueError("Source dimensions must be positive values")
+                
+                # Initialize VNC client
+                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
+                
+                # Connect to remote MacOs machine
+                success, error_message = vnc.connect()
+                if not success:
+                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
+                    return [types.TextContent(type="text", text=error_msg)]
+                
+                try:
+                    # Get target screen dimensions
+                    target_width = vnc.width
+                    target_height = vnc.height
+                    
+                    # Scale coordinates
+                    scaled_x = int((x / source_width) * target_width)
+                    scaled_y = int((y / source_height) * target_height)
+                    
+                    # Ensure coordinates are within the screen bounds
+                    scaled_x = max(0, min(scaled_x, target_width - 1))
+                    scaled_y = max(0, min(scaled_y, target_height - 1))
+                    
+                    # Scroll
+                    if direction.lower() == "up":
+                        # Scroll up (button 4)
+                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 3)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    else:  # down
+                        # Scroll down (button 5)
+                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 4)
+                        time.sleep(0.1)
+                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    
+                    # Prepare the response with useful details
+                    scale_factors = {
+                        "x": target_width / source_width,
+                        "y": target_height / source_height
+                    }
+                    
+                    return [types.TextContent(
+                        type="text", 
+                        text=f"""Mouse scroll {direction} from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
+Source dimensions: {source_width}x{source_height}
+Target dimensions: {target_width}x{target_height}
+Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
+                    )]
+                finally:
+                    # Close VNC connection
+                    vnc.close()
+            
+            elif name == "remote_macos_apple_script":
+                # Use environment variables
+                host = MACOS_HOST
+                port = 22  # SSH default port
+                username = MACOS_USERNAME
+                password = MACOS_PASSWORD
+                
+                # Get required parameters from arguments
                 apple_script = arguments.get("apple_script")
                 timeout = int(arguments.get("timeout", 60))
                 
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not username:
-                    raise ValueError("username is required for SSH authentication")
-                
                 if not apple_script:
                     raise ValueError("apple_script is required to execute on the remote machine")
-                
-                if not password and not private_key:
-                    raise ValueError("Either password or private_key must be provided for authentication")
                 
                 try:
                     # Import required libraries
@@ -1533,30 +1319,14 @@ Example sequence:
                 try:
                     logger.info(f"Connecting to {host}:{port} as {username}")
                     
-                    # Connect using either password or private key
-                    if private_key:
-                        # Decode private key if base64 encoded
-                        key_file = io.StringIO(base64.b64decode(private_key).decode('utf-8'))
-                        private_key_obj = paramiko.RSAKey.from_private_key(
-                            key_file,
-                            password=private_key_password if private_key_password else None
-                        )
-                        ssh.connect(
-                            hostname=host,
-                            port=port,
-                            username=username,
-                            pkey=private_key_obj,
-                            timeout=10
-                        )
-                    else:
-                        # Connect with password
-                        ssh.connect(
-                            hostname=host,
-                            port=port,
-                            username=username,
-                            password=password,
-                            timeout=10
-                        )
+                    # Connect with password
+                    ssh.connect(
+                        hostname=host,
+                        port=port,
+                        username=username,
+                        password=password,
+                        timeout=10
+                    )
                     
                     logger.info(f"Successfully connected to {host}, executing AppleScript: {apple_script}")
                     logger.debug(f"Full command: {command}")
@@ -1608,7 +1378,7 @@ Example sequence:
                     
                 except paramiko.AuthenticationException:
                     return [types.TextContent(
-                        type="text",
+                        type="text", 
                         text=f"Authentication failed for {username}@{host}:{port}. Check credentials."
                     )]
                 except socket_timeout:
@@ -1632,20 +1402,17 @@ Example sequence:
                     logger.info(f"SSH connection to {host} closed")
             
             elif name == "remote_macos_send_keys":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
+                
+                # Get required parameters from arguments
                 text = arguments.get("text")
                 special_key = arguments.get("special_key")
                 key_combination = arguments.get("key_combination")
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
                 if not text and not special_key and not key_combination:
                     raise ValueError("Either text, special_key, or key_combination must be provided")
@@ -1662,41 +1429,41 @@ Example sequence:
                 try:
                     result_message = []
                     
+                    # Map of special key names to X11 keysyms (moved here to be accessible for all key operations)
+                    special_keys = {
+                        "enter": 0xff0d,
+                        "return": 0xff0d,
+                        "backspace": 0xff08,
+                        "tab": 0xff09,
+                        "escape": 0xff1b,
+                        "esc": 0xff1b,
+                        "delete": 0xffff,
+                        "del": 0xffff,
+                        "home": 0xff50,
+                        "end": 0xff57,
+                        "page_up": 0xff55,
+                        "page_down": 0xff56,
+                        "left": 0xff51,
+                        "up": 0xff52,
+                        "right": 0xff53,
+                        "down": 0xff54,
+                        "f1": 0xffbe,
+                        "f2": 0xffbf,
+                        "f3": 0xffc0,
+                        "f4": 0xffc1,
+                        "f5": 0xffc2,
+                        "f6": 0xffc3,
+                        "f7": 0xffc4,
+                        "f8": 0xffc5,
+                        "f9": 0xffc6,
+                        "f10": 0xffc7,
+                        "f11": 0xffc8,
+                        "f12": 0xffc9,
+                        "space": 0x20,
+                    }
+                    
                     # Process special key
                     if special_key:
-                        # Map of special key names to X11 keysyms
-                        special_keys = {
-                            "enter": 0xff0d,
-                            "return": 0xff0d,
-                            "backspace": 0xff08,
-                            "tab": 0xff09,
-                            "escape": 0xff1b,
-                            "esc": 0xff1b,
-                            "delete": 0xffff,
-                            "del": 0xffff,
-                            "home": 0xff50,
-                            "end": 0xff57,
-                            "page_up": 0xff55,
-                            "page_down": 0xff56,
-                            "left": 0xff51,
-                            "up": 0xff52,
-                            "right": 0xff53,
-                            "down": 0xff54,
-                            "f1": 0xffbe,
-                            "f2": 0xffbf,
-                            "f3": 0xffc0,
-                            "f4": 0xffc1,
-                            "f5": 0xffc2,
-                            "f6": 0xffc3,
-                            "f7": 0xffc4,
-                            "f8": 0xffc5,
-                            "f9": 0xffc6,
-                            "f10": 0xffc7,
-                            "f11": 0xffc8,
-                            "f12": 0xffc9,
-                            "space": 0x20,
-                        }
-                        
                         if special_key.lower() in special_keys:
                             # Send key press and release
                             key = special_keys[special_key.lower()]
@@ -1757,21 +1524,18 @@ Example sequence:
                     vnc.close()
             
             elif name == "remote_macos_mouse_move":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
+                
+                # Get required parameters from arguments
                 x = arguments.get("x")
                 y = arguments.get("y")
                 source_width = int(arguments.get("source_width", 1366))
                 source_height = int(arguments.get("source_height", 768))
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
                 if x is None or y is None:
                     raise ValueError("x and y coordinates are required")
@@ -1823,22 +1587,19 @@ Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
                     vnc.close()
                     
             elif name == "remote_macos_mouse_click":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
+                
+                # Get required parameters from arguments
                 x = arguments.get("x")
                 y = arguments.get("y")
                 source_width = int(arguments.get("source_width", 1366))
                 source_height = int(arguments.get("source_height", 768))
                 button = int(arguments.get("button", 1))
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
                 if x is None or y is None:
                     raise ValueError("x and y coordinates are required")
@@ -1890,22 +1651,19 @@ Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
                     vnc.close()
                     
             elif name == "remote_macos_mouse_double_click":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
+                # Use environment variables
+                host = MACOS_HOST
+                port = MACOS_PORT
+                password = MACOS_PASSWORD
+                username = MACOS_USERNAME
+                encryption = VNC_ENCRYPTION
+                
+                # Get required parameters from arguments
                 x = arguments.get("x")
                 y = arguments.get("y")
                 source_width = int(arguments.get("source_width", 1366))
                 source_height = int(arguments.get("source_height", 768))
                 button = int(arguments.get("button", 1))
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
                 
                 if x is None or y is None:
                     raise ValueError("x and y coordinates are required")
@@ -1956,82 +1714,6 @@ Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
                     # Close VNC connection
                     vnc.close()
                     
-            elif name == "remote_macos_mouse_scroll":
-                host = arguments.get("host")
-                port = int(arguments.get("port", 5900))
-                password = arguments.get("password")
-                username = arguments.get("username")
-                x = arguments.get("x")
-                y = arguments.get("y")
-                source_width = int(arguments.get("source_width", 1366))
-                source_height = int(arguments.get("source_height", 768))
-                direction = arguments.get("direction", "down")
-                encryption = arguments.get("encryption", "prefer_on")
-                
-                if not host:
-                    raise ValueError("host is required to connect to remote MacOs machine")
-                
-                if not password:
-                    raise ValueError("password is required for Apple Authentication (protocol 30)")
-                
-                if x is None or y is None:
-                    raise ValueError("x and y coordinates are required")
-                
-                # Ensure source dimensions are positive
-                if source_width <= 0 or source_height <= 0:
-                    raise ValueError("Source dimensions must be positive values")
-                
-                # Initialize VNC client
-                vnc = VNCClient(host=host, port=port, password=password, username=username, encryption=encryption)
-                
-                # Connect to remote MacOs machine
-                success, error_message = vnc.connect()
-                if not success:
-                    error_msg = f"Failed to connect to remote MacOs machine at {host}:{port}. {error_message}"
-                    return [types.TextContent(type="text", text=error_msg)]
-                
-                try:
-                    # Get target screen dimensions
-                    target_width = vnc.width
-                    target_height = vnc.height
-                    
-                    # Scale coordinates
-                    scaled_x = int((x / source_width) * target_width)
-                    scaled_y = int((y / source_height) * target_height)
-                    
-                    # Ensure coordinates are within the screen bounds
-                    scaled_x = max(0, min(scaled_x, target_width - 1))
-                    scaled_y = max(0, min(scaled_y, target_height - 1))
-                    
-                    # Scroll
-                    if direction.lower() == "up":
-                        # Scroll up (button 4)
-                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 3)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
-                    else:  # down
-                        # Scroll down (button 5)
-                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 4)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
-                    
-                    # Prepare the response with useful details
-                    scale_factors = {
-                        "x": target_width / source_width,
-                        "y": target_height / source_height
-                    }
-                    
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"""Mouse scroll {direction} from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
-Source dimensions: {source_width}x{source_height}
-Target dimensions: {target_width}x{target_height}
-Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
-                    )]
-                finally:
-                    # Close VNC connection
-                    vnc.close()
-                
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
@@ -2058,5 +1740,14 @@ if __name__ == "__main__":
     # Load environment variables from .env file if it exists
     load_dotenv()
     
-    # Run the server
-    asyncio.run(main()) 
+    try:
+        # Run the server
+        asyncio.run(main())
+    except ValueError as e:
+        logger.error(f"Initialization failed: {str(e)}")
+        print(f"ERROR: {str(e)}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        print(f"ERROR: Unexpected error occurred: {str(e)}")
+        sys.exit(1) 

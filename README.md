@@ -88,6 +88,12 @@ You can configure Claude Desktop to use the Docker image by adding the following
       "args": [
         "run",
         "-i",
+        "-e",
+        "MACOS_USERNAME=your_macos_username",
+        "-e",
+        "MACOS_PASSWORD=your_macos_password",
+        "-e",
+        "MACOS_HOST=your_macos_hostname_or_ip",
         "--rm",
         "buryhuang/mcp-remote-macos-use:latest"
       ]
