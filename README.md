@@ -6,6 +6,11 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/buryhuang/mcp-remote-macos-use)](https://hub.docker.com/r/buryhuang/mcp-remote-macos-use)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+**Showcase Demo**
+https://www.youtube.com/watch?v=--QHz2jcvcs
+<img width="1259" alt="image" src="https://github.com/user-attachments/assets/bfe6e354-3d59-4d08-855b-2eecdaaeb46f" />
+
+
 ## Features
 
 * **No Extra API Costs**: Free screen processing with your existing Claude Pro plan
