@@ -6,9 +6,13 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/buryhuang/mcp-remote-macos-use)](https://hub.docker.com/r/buryhuang/mcp-remote-macos-use)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Showcase Demo**
-https://www.youtube.com/watch?v=--QHz2jcvcs
-<img width="1259" alt="image" src="https://github.com/user-attachments/assets/bfe6e354-3d59-4d08-855b-2eecdaaeb46f" />
+**Showcases**
+- Research Twitter and Post Twitter(https://www.youtube.com/watch?v=--QHz2jcvcs)
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/bfe6e354-3d59-4d08-855b-2eecdaaeb46f" />
+
+- Use CapCut to create short highlight video(https://www.youtube.com/watch?v=RKAqiNoU8ec)
+<img width="400" alt="image" src="https://github.com/user-attachments/assets/3b4d07c5-cd25-4dae-b9a1-a373bf7492aa" />
+
 
 
 ## Features
