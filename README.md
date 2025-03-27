@@ -59,6 +59,12 @@ You can configure Claude Desktop to use the Docker image by adding the following
       "args": [
         "run",
         "-i",
+        "-e",
+        "MACOS_USERNAME=your_macos_username",
+        "-e",
+        "MACOS_PASSWORD=your_macos_password",
+        "-e",
+        "MACOS_HOST=your_macos_hostname_or_ip",
         "--rm",
         "buryhuang/mcp-remote-macos-use:latest"
       ]
@@ -81,34 +87,6 @@ cd mcp-remote-macos-use
 ```bash
 # Build the Docker image
 docker build -t mcp-remote-macos-use .
-```
-
-## Usage with Claude Desktop
-
-### Docker Usage
-
-You can configure Claude Desktop to use the Docker image by adding the following to your Claude configuration:
-
-```json
-{
-  "mcpServers": {
-    "remote-macos-use": {
-      "command": "docker",
-      "args": [
-        "run",
-        "-i",
-        "-e",
-        "MACOS_USERNAME=your_macos_username",
-        "-e",
-        "MACOS_PASSWORD=your_macos_password",
-        "-e",
-        "MACOS_HOST=your_macos_hostname_or_ip",
-        "--rm",
-        "buryhuang/mcp-remote-macos-use:latest"
-      ]
-    }
-  }
-}
 ```
 
 ## Cross-Platform Publishing
