@@ -1090,18 +1090,18 @@ async def main():
                     "required": ["x", "y"]
                 },
             ),
-            types.Tool(
-                name="remote_macos_apple_script",
-                description="Run Apple Script on a remote MacOs machine via SSH. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "apple_script": {"type": "string", "description": "The one-line apple script that will execute on the remote machine."},
-                        "timeout": {"type": "integer", "description": "Command execution timeout in seconds (default: 60)"}
-                    },
-                    "required": ["apple_script"]
-                },
-            ),
+            # types.Tool(
+            #     name="remote_macos_apple_script",
+            #     description="Run Apple Script on a remote MacOs machine via SSH. Uses environment variables for connection details.",
+            #     inputSchema={
+            #         "type": "object",
+            #         "properties": {
+            #             "apple_script": {"type": "string", "description": "The one-line apple script that will execute on the remote machine."},
+            #             "timeout": {"type": "integer", "description": "Command execution timeout in seconds (default: 60)"}
+            #         },
+            #         "required": ["apple_script"]
+            #     },
+            # ),
             types.Tool(
                 name="remote_macos_send_keys",
                 description="Send keyboard input to a remote MacOs machine. Uses environment variables for connection details.",
@@ -1251,17 +1251,18 @@ async def main():
                     scaled_x = max(0, min(scaled_x, target_width - 1))
                     scaled_y = max(0, min(scaled_y, target_height - 1))
                     
-                    # Scroll
-                    if direction.lower() == "up":
-                        # Scroll up (button 4)
-                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 3)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
-                    else:  # down
-                        # Scroll down (button 5)
-                        result = vnc.send_pointer_event(scaled_x, scaled_y, 1 << 4)
-                        time.sleep(0.1)
-                        result = result and vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    # First move the mouse to the target location without clicking
+                    move_result = vnc.send_pointer_event(scaled_x, scaled_y, 0)
+                    
+                    # Map of special keys for page up/down
+                    special_keys = {
+                        "up": 0xff55,    # Page Up key
+                        "down": 0xff56,  # Page Down key
+                    }
+                    
+                    # Send the appropriate page key based on direction
+                    key = special_keys["up" if direction.lower() == "up" else "down"]
+                    key_result = vnc.send_key_event(key, True) and vnc.send_key_event(key, False)
                     
                     # Prepare the response with useful details
                     scale_factors = {
@@ -1271,7 +1272,8 @@ async def main():
                     
                     return [types.TextContent(
                         type="text", 
-                        text=f"""Mouse scroll {direction} from source ({x}, {y}) to target ({scaled_x}, {scaled_y}) {'succeeded' if result else 'failed'}
+                        text=f"""Mouse move to ({scaled_x}, {scaled_y}) {'succeeded' if move_result else 'failed'}
+Page {direction} key press {'succeeded' if key_result else 'failed'}
 Source dimensions: {source_width}x{source_height}
 Target dimensions: {target_width}x{target_height}
 Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
@@ -1280,126 +1282,126 @@ Scale factors: {scale_factors['x']:.4f}x, {scale_factors['y']:.4f}y"""
                     # Close VNC connection
                     vnc.close()
             
-            elif name == "remote_macos_apple_script":
-                # Use environment variables
-                host = MACOS_HOST
-                port = 22  # SSH default port
-                username = MACOS_USERNAME
-                password = MACOS_PASSWORD
+            # elif name == "remote_macos_apple_script":
+            #     # Use environment variables
+            #     host = MACOS_HOST
+            #     port = 22  # SSH default port
+            #     username = MACOS_USERNAME
+            #     password = MACOS_PASSWORD
                 
-                # Get required parameters from arguments
-                apple_script = arguments.get("apple_script")
-                timeout = int(arguments.get("timeout", 60))
+            #     # Get required parameters from arguments
+            #     apple_script = arguments.get("apple_script")
+            #     timeout = int(arguments.get("timeout", 60))
                 
-                if not apple_script:
-                    raise ValueError("apple_script is required to execute on the remote machine")
+            #     if not apple_script:
+            #         raise ValueError("apple_script is required to execute on the remote machine")
                 
-                try:
-                    # Import required libraries
-                    import paramiko
-                    import io
-                    import base64
-                    import time
-                    from socket import timeout as socket_timeout
-                except ImportError as e:
-                    return [types.TextContent(
-                        type="text",
-                        text=f"Error: Missing required libraries. Please install paramiko: {str(e)}"
-                    )]
+            #     try:
+            #         # Import required libraries
+            #         import paramiko
+            #         import io
+            #         import base64
+            #         import time
+            #         from socket import timeout as socket_timeout
+            #     except ImportError as e:
+            #         return [types.TextContent(
+            #             type="text",
+            #             text=f"Error: Missing required libraries. Please install paramiko: {str(e)}"
+            #         )]
                 
-                # Construct the osascript command
-                escaped_script = apple_script.replace('"', '\\"')
-                command = f'osascript -e "{escaped_script}"'
-                logger.info(f"Constructed osascript command: {command}")
+            #     # Construct the osascript command
+            #     escaped_script = apple_script.replace('"', '\\"')
+            #     command = f'osascript -e "{escaped_script}"'
+            #     logger.info(f"Constructed osascript command: {command}")
                 
-                # Initialize SSH client
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            #     # Initialize SSH client
+            #     ssh = paramiko.SSHClient()
+            #     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
                 
-                try:
-                    logger.info(f"Connecting to {host}:{port} as {username}")
+            #     try:
+            #         logger.info(f"Connecting to {host}:{port} as {username}")
                     
-                    # Connect with password
-                    ssh.connect(
-                        hostname=host,
-                        port=port,
-                        username=username,
-                        password=password,
-                        timeout=10
-                    )
+            #         # Connect with password
+            #         ssh.connect(
+            #             hostname=host,
+            #             port=port,
+            #             username=username,
+            #             password=password,
+            #             timeout=10
+            #         )
                     
-                    logger.info(f"Successfully connected to {host}, executing AppleScript: {apple_script}")
-                    logger.debug(f"Full command: {command}")
+            #         logger.info(f"Successfully connected to {host}, executing AppleScript: {apple_script}")
+            #         logger.debug(f"Full command: {command}")
                     
-                    # Execute command with PTY (pseudo-terminal) for interactive commands
-                    channel = ssh.get_transport().open_session()
-                    channel.get_pty()
-                    channel.settimeout(timeout)
-                    channel.exec_command(command)
+            #         # Execute command with PTY (pseudo-terminal) for interactive commands
+            #         channel = ssh.get_transport().open_session()
+            #         channel.get_pty()
+            #         channel.settimeout(timeout)
+            #         channel.exec_command(command)
                     
-                    # Read output
-                    output = ""
-                    stderr_output = ""
+            #         # Read output
+            #         output = ""
+            #         stderr_output = ""
                     
-                    # Read from stdout and stderr until closed or timeout
-                    start_time = time.time()
-                    while not channel.exit_status_ready():
-                        if channel.recv_ready():
-                            output += channel.recv(1024).decode('utf-8')
-                        if channel.recv_stderr_ready():
-                            stderr_output += channel.recv_stderr(1024).decode('utf-8')
+            #         # Read from stdout and stderr until closed or timeout
+            #         start_time = time.time()
+            #         while not channel.exit_status_ready():
+            #             if channel.recv_ready():
+            #                 output += channel.recv(1024).decode('utf-8')
+            #             if channel.recv_stderr_ready():
+            #                 stderr_output += channel.recv_stderr(1024).decode('utf-8')
                         
-                        # Check timeout
-                        if time.time() - start_time > timeout:
-                            raise TimeoutError(f"Command execution timed out after {timeout} seconds")
+            #             # Check timeout
+            #             if time.time() - start_time > timeout:
+            #                 raise TimeoutError(f"Command execution timed out after {timeout} seconds")
                         
-                        # Small sleep to prevent CPU spinning
-                        time.sleep(0.1)
+            #             # Small sleep to prevent CPU spinning
+            #             time.sleep(0.1)
                     
-                    # Get any remaining output
-                    while channel.recv_ready():
-                        output += channel.recv(1024).decode('utf-8')
-                    while channel.recv_stderr_ready():
-                        stderr_output += channel.recv_stderr(1024).decode('utf-8')
+            #         # Get any remaining output
+            #         while channel.recv_ready():
+            #             output += channel.recv(1024).decode('utf-8')
+            #         while channel.recv_stderr_ready():
+            #             stderr_output += channel.recv_stderr(1024).decode('utf-8')
                     
-                    # Get exit status
-                    exit_status = channel.recv_exit_status()
+            #         # Get exit status
+            #         exit_status = channel.recv_exit_status()
                     
-                    # Format response
-                    response = f"Command executed with exit status: {exit_status}\n\n"
+            #         # Format response
+            #         response = f"Command executed with exit status: {exit_status}\n\n"
                     
-                    if output:
-                        response += f"STDOUT:\n{output}\n\n"
+            #         if output:
+            #             response += f"STDOUT:\n{output}\n\n"
                     
-                    if stderr_output:
-                        response += f"STDERR:\n{stderr_output}\n"
+            #         if stderr_output:
+            #             response += f"STDERR:\n{stderr_output}\n"
                     
-                    return [types.TextContent(type="text", text=response)]
+            #         return [types.TextContent(type="text", text=response)]
                     
-                except paramiko.AuthenticationException:
-                    return [types.TextContent(
-                        type="text", 
-                        text=f"Authentication failed for {username}@{host}:{port}. Check credentials."
-                    )]
-                except socket_timeout:
-                    return [types.TextContent(
-                        type="text",
-                        text=f"Connection timeout while connecting to {host}:{port}."
-                    )]
-                except TimeoutError as e:
-                    return [types.TextContent(
-                        type="text",
-                        text=str(e)
-                    )]
-                except Exception as e:
-                    return [types.TextContent(
-                        type="text",
-                        text=f"Error executing SSH command: {str(e)}"
-                    )]
-                finally:
-                    # Close SSH connection
-                    ssh.close()
-                    logger.info(f"SSH connection to {host} closed")
+            #     except paramiko.AuthenticationException:
+            #         return [types.TextContent(
+            #             type="text", 
+            #             text=f"Authentication failed for {username}@{host}:{port}. Check credentials."
+            #         )]
+            #     except socket_timeout:
+            #         return [types.TextContent(
+            #             type="text",
+            #             text=f"Connection timeout while connecting to {host}:{port}."
+            #         )]
+            #     except TimeoutError as e:
+            #         return [types.TextContent(
+            #             type="text",
+            #             text=str(e)
+            #         )]
+            #     except Exception as e:
+            #         return [types.TextContent(
+            #             type="text",
+            #             text=f"Error executing SSH command: {str(e)}"
+            #         )]
+            #     finally:
+            #         # Close SSH connection
+            #         ssh.close()
+            #         logger.info(f"SSH connection to {host} closed")
             
             elif name == "remote_macos_send_keys":
                 # Use environment variables
