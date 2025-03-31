@@ -35,6 +35,10 @@ from action_handlers import (
     handle_remote_macos_mouse_double_click
 )
 
+# Import browser actions from the src directory
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from browser_actions import PlaywrightActionHandlers
+
 # Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
@@ -66,20 +70,218 @@ if not MACOS_PASSWORD:
     logger.error("MACOS_PASSWORD environment variable is required but not set")
     raise ValueError("MACOS_PASSWORD environment variable is required but not set")
 
+class MacOSActionHandlers:
+    """Handles VNC-based actions for MacOS remote control."""
+
+    def __init__(self):
+        self.vnc_client = None
+
+    async def initialize(self):
+        """Initialize VNC client."""
+        if not self.vnc_client:
+            self.vnc_client = VNCClient(
+                host=MACOS_HOST,
+                port=MACOS_PORT,
+                username=MACOS_USERNAME,
+                password=MACOS_PASSWORD,
+                encryption=VNC_ENCRYPTION
+            )
+
+    async def cleanup(self):
+        """Clean up VNC client."""
+        if self.vnc_client:
+            await self.vnc_client.close()
+            self.vnc_client = None
+
+    @property
+    def tool_definitions(self) -> Dict[str, Dict[str, Any]]:
+        """Get tool definitions for MacOS actions."""
+        return {
+            "remote_macos_get_screen": {
+                "description": "Get a screenshot of the remote desktop",
+                "parameters": {}
+            },
+            "remote_macos_mouse_scroll": {
+                "description": "Perform a mouse scroll",
+                "parameters": {
+                    "x": {"type": "integer", "description": "X coordinate"},
+                    "y": {"type": "integer", "description": "Y coordinate"},
+                    "direction": {"type": "string", "enum": ["up", "down"], "default": "down"}
+                }
+            },
+            "remote_macos_mouse_click": {
+                "description": "Perform a mouse click",
+                "parameters": {
+                    "x": {"type": "integer", "description": "X coordinate"},
+                    "y": {"type": "integer", "description": "Y coordinate"},
+                    "button": {"type": "integer", "default": 1}
+                }
+            },
+            "remote_macos_mouse_double_click": {
+                "description": "Perform a mouse double-click",
+                "parameters": {
+                    "x": {"type": "integer", "description": "X coordinate"},
+                    "y": {"type": "integer", "description": "Y coordinate"},
+                    "button": {"type": "integer", "default": 1}
+                }
+            },
+            "remote_macos_mouse_move": {
+                "description": "Move the mouse cursor",
+                "parameters": {
+                    "x": {"type": "integer", "description": "X coordinate"},
+                    "y": {"type": "integer", "description": "Y coordinate"}
+                }
+            },
+            "remote_macos_send_keys": {
+                "description": "Send keyboard input",
+                "parameters": {
+                    "text": {"type": "string", "description": "Text to type"},
+                    "special_key": {"type": "string", "description": "Special key to send"},
+                    "key_combination": {"type": "string", "description": "Key combination to send"}
+                }
+            }
+        }
+
+    async def handle_remote_macos_get_screen(self, **kwargs) -> Dict[str, Any]:
+        """Get a screenshot of the remote desktop."""
+        await self.initialize()
+        try:
+            screenshot = await capture_vnc_screen(self.vnc_client)
+            return {"success": True, "screenshot": screenshot}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def handle_remote_macos_mouse_scroll(self, x: int, y: int, direction: str = "down", **kwargs) -> Dict[str, Any]:
+        """Perform a mouse scroll."""
+        await self.initialize()
+        try:
+            await self.vnc_client.mouse_scroll(x, y, direction)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def handle_remote_macos_mouse_click(self, x: int, y: int, button: int = 1, **kwargs) -> Dict[str, Any]:
+        """Perform a mouse click."""
+        await self.initialize()
+        try:
+            await self.vnc_client.mouse_click(x, y, button)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def handle_remote_macos_mouse_double_click(self, x: int, y: int, button: int = 1, **kwargs) -> Dict[str, Any]:
+        """Perform a mouse double-click."""
+        await self.initialize()
+        try:
+            await self.vnc_client.mouse_double_click(x, y, button)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def handle_remote_macos_mouse_move(self, x: int, y: int, **kwargs) -> Dict[str, Any]:
+        """Move the mouse cursor."""
+        await self.initialize()
+        try:
+            await self.vnc_client.mouse_move(x, y)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    async def handle_remote_macos_send_keys(self, text: Optional[str] = None,
+                                          special_key: Optional[str] = None,
+                                          key_combination: Optional[str] = None,
+                                          **kwargs) -> Dict[str, Any]:
+        """Send keyboard input."""
+        await self.initialize()
+        try:
+            if text:
+                await self.vnc_client.send_keys(text)
+            elif special_key:
+                await self.vnc_client.send_special_key(special_key)
+            elif key_combination:
+                await self.vnc_client.send_key_combination(key_combination)
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+class MCPServer:
+    def __init__(self):
+        self.macos_handlers = MacOSActionHandlers()
+        self.browser_handlers = PlaywrightActionHandlers()
+        self._initialized = False
+
+    async def initialize(self):
+        """Initialize all handlers."""
+        if self._initialized:
+            return
+
+        # Initialize MacOS handlers if needed
+        if hasattr(self.macos_handlers, 'initialize'):
+            await self.macos_handlers.initialize()
+
+        # Initialize browser handlers
+        await self.browser_handlers.ensure_browser(headless=True)
+        self._initialized = True
+
+    async def cleanup(self):
+        """Cleanup all handlers."""
+        # Cleanup MacOS handlers
+        if hasattr(self.macos_handlers, 'cleanup'):
+            await self.macos_handlers.cleanup()
+
+        # Cleanup browser handlers
+        await self.browser_handlers.cleanup()
+        self._initialized = False
+
+    @property
+    def tool_definitions(self) -> Dict[str, Dict[str, Any]]:
+        """Combine tool definitions from all handlers."""
+        tools = {}
+
+        # Add MacOS tools
+        if hasattr(self.macos_handlers, 'tool_definitions'):
+            tools.update(self.macos_handlers.tool_definitions)
+
+        # Add browser tools with proper prefixes
+        browser_tools = self.browser_handlers.tool_definitions
+        for name, tool in browser_tools.items():
+            tools[f"browser_{name}"] = tool
+
+        return tools
+
+    async def handle_request(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle incoming tool requests."""
+        try:
+            # Initialize if not already done
+            if not self._initialized:
+                await self.initialize()
+
+            # Check browser handlers first (remove browser_ prefix)
+            if tool_name.startswith('browser_'):
+                actual_name = tool_name[8:]  # Remove 'browser_' prefix
+                handler = getattr(self.browser_handlers, f'handle_{actual_name}', None)
+                if handler:
+                    return await handler(**params)
+
+            # Check MacOS handlers
+            handler = getattr(self.macos_handlers, f'handle_{tool_name}', None)
+            if handler:
+                return await handler(**params)
+
+            raise ValueError(f"Unknown tool: {tool_name}")
+
+        except Exception as e:
+            logger.error(f"Error handling {tool_name}: {e}")
+            return {"success": False, "error": str(e)}
 
 async def main():
     """Run the Remote MacOS MCP server."""
     logger.info("Remote MacOS computer use server starting")
-    
-    # Validate required environment variables
-    if not MACOS_HOST:
-        logger.error("MACOS_HOST environment variable is required but not set")
-        raise ValueError("MACOS_HOST environment variable is required but not set")
 
-    if not MACOS_PASSWORD:
-        logger.error("MACOS_PASSWORD environment variable is required but not set")
-        raise ValueError("MACOS_PASSWORD environment variable is required but not set")
-    
+    # Initialize MCP server
+    mcp_server = MCPServer()
+    await mcp_server.initialize()
+
     server = Server("remote-macos-client")
 
     @server.list_resources()
@@ -93,7 +295,10 @@ async def main():
     @server.list_tools()
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
-        return [
+        tools = []
+
+        # Add MacOS tools
+        tools.extend([
             types.Tool(
                 name="remote_macos_get_screen",
                 description="Connect to a remote MacOs machine and get a screenshot of the remote desktop. Uses environment variables for connection details.",
@@ -113,8 +318,8 @@ async def main():
                         "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
                         "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
                         "direction": {
-                            "type": "string", 
-                            "description": "Scroll direction", 
+                            "type": "string",
+                            "description": "Scroll direction",
                             "enum": ["up", "down"],
                             "default": "down"
                         }
@@ -179,7 +384,18 @@ async def main():
                     "required": ["x", "y"]
                 },
             ),
-        ]
+        ])
+
+        # Add browser tools
+        for name, tool_def in mcp_server.tool_definitions.items():
+            if name.startswith('browser_'):
+                tools.append(types.Tool(
+                    name=name,
+                    description=tool_def.get('description', ''),
+                    inputSchema=tool_def.get('parameters', {})
+                ))
+
+        return tools
 
     @server.call_tool()
     async def handle_call_tool(
@@ -189,25 +405,27 @@ async def main():
         try:
             if not arguments:
                 arguments = {}
-            
+
+            # Try browser tools first
+            if name.startswith('browser_'):
+                result = await mcp_server.handle_request(name, arguments)
+                if not result.get('success', False):
+                    return [types.TextContent(type="text", text=f"Error: {result.get('error', 'Unknown error')}")]
+                return [types.TextContent(type="text", text=str(result))]
+
+            # Handle MacOS tools
             if name == "remote_macos_get_screen":
                 return await handle_remote_macos_get_screen(arguments)
-                
             elif name == "remote_macos_mouse_scroll":
-                return handle_remote_macos_mouse_scroll(arguments)            
-            
+                return handle_remote_macos_mouse_scroll(arguments)
             elif name == "remote_macos_send_keys":
                 return handle_remote_macos_send_keys(arguments)
-            
             elif name == "remote_macos_mouse_move":
                 return handle_remote_macos_mouse_move(arguments)
-                    
             elif name == "remote_macos_mouse_click":
                 return handle_remote_macos_mouse_click(arguments)
-                    
             elif name == "remote_macos_mouse_double_click":
                 return handle_remote_macos_mouse_double_click(arguments)
-                    
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
@@ -215,25 +433,28 @@ async def main():
             logger.error(f"Error in handle_call_tool: {str(e)}", exc_info=True)
             return [types.TextContent(type="text", text=f"Error: {str(e)}")]
 
-    async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
-        logger.info("Server running with stdio transport")
-        await server.run(
-            read_stream,
-            write_stream,
-            InitializationOptions(
-                server_name="vnc-client",
-                server_version="0.1.0",
-                capabilities=server.get_capabilities(
-                    notification_options=NotificationOptions(),
-                    experimental_capabilities={},
+    try:
+        async with mcp.server.stdio.stdio_server() as (read_stream, write_stream):
+            logger.info("Server running with stdio transport")
+            await server.run(
+                read_stream,
+                write_stream,
+                InitializationOptions(
+                    server_name="vnc-client",
+                    server_version="0.1.0",
+                    capabilities=server.get_capabilities(
+                        notification_options=NotificationOptions(),
+                        experimental_capabilities={},
+                    ),
                 ),
-            ),
-        )
+            )
+    finally:
+        await mcp_server.cleanup()
 
 if __name__ == "__main__":
     # Load environment variables from .env file if it exists
     load_dotenv()
-    
+
     try:
         # Run the server
         asyncio.run(main())
@@ -244,4 +465,4 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}", exc_info=True)
         print(f"ERROR: Unexpected error occurred: {str(e)}")
-        sys.exit(1) 
+        sys.exit(1)
