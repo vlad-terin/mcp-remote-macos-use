@@ -70,6 +70,9 @@ if not MACOS_PASSWORD:
     logger.error("MACOS_PASSWORD environment variable is required but not set")
     raise ValueError("MACOS_PASSWORD environment variable is required but not set")
 
+# Initialize global MCP server
+mcp_server = None
+
 class MacOSActionHandlers:
     """Handles VNC-based actions for MacOS remote control."""
 
@@ -209,6 +212,7 @@ class MCPServer:
         self.macos_handlers = MacOSActionHandlers()
         self.browser_handlers = PlaywrightActionHandlers()
         self._initialized = False
+        self._tool_definitions = None
 
     async def initialize(self):
         """Initialize all handlers."""
@@ -221,6 +225,9 @@ class MCPServer:
 
         # Initialize browser handlers
         await self.browser_handlers.ensure_browser(headless=True)
+
+        # Cache tool definitions
+        self._tool_definitions = self._get_tool_definitions()
         self._initialized = True
 
     async def cleanup(self):
@@ -232,10 +239,10 @@ class MCPServer:
         # Cleanup browser handlers
         await self.browser_handlers.cleanup()
         self._initialized = False
+        self._tool_definitions = None
 
-    @property
-    def tool_definitions(self) -> Dict[str, Dict[str, Any]]:
-        """Combine tool definitions from all handlers."""
+    def _get_tool_definitions(self) -> Dict[str, Dict[str, Any]]:
+        """Get all tool definitions."""
         tools = {}
 
         # Add MacOS tools
@@ -243,42 +250,50 @@ class MCPServer:
             tools.update(self.macos_handlers.tool_definitions)
 
         # Add browser tools with proper prefixes
-        browser_tools = self.browser_handlers.tool_definitions
-        for name, tool in browser_tools.items():
-            tools[f"browser_{name}"] = tool
+        if hasattr(self.browser_handlers, 'tool_definitions'):
+            browser_tools = self.browser_handlers.tool_definitions
+            for name, tool in browser_tools.items():
+                tools[f"browser_{name}"] = tool
 
         return tools
 
+    @property
+    def tool_definitions(self) -> Dict[str, Dict[str, Any]]:
+        """Get cached tool definitions."""
+        if not self._tool_definitions:
+            self._tool_definitions = self._get_tool_definitions()
+        return self._tool_definitions
+
     async def handle_request(self, tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle incoming tool requests."""
+        """Handle a tool request."""
+        if not self._initialized:
+            await self.initialize()
+
         try:
-            # Initialize if not already done
-            if not self._initialized:
-                await self.initialize()
-
-            # Check browser handlers first (remove browser_ prefix)
-            if tool_name.startswith('browser_'):
-                actual_name = tool_name[8:]  # Remove 'browser_' prefix
-                handler = getattr(self.browser_handlers, f'handle_{actual_name}', None)
-                if handler:
-                    return await handler(**params)
-
-            # Check MacOS handlers
-            handler = getattr(self.macos_handlers, f'handle_{tool_name}', None)
-            if handler:
+            # Handle MacOS tools
+            if tool_name in self.macos_handlers.tool_definitions:
+                handler = getattr(self.macos_handlers, f"handle_{tool_name}")
                 return await handler(**params)
 
-            raise ValueError(f"Unknown tool: {tool_name}")
+            # Handle browser tools
+            if tool_name.startswith("browser_"):
+                browser_tool = tool_name[len("browser_"):]
+                if hasattr(self.browser_handlers, f"handle_{browser_tool}"):
+                    handler = getattr(self.browser_handlers, f"handle_{browser_tool}")
+                    return await handler(**params)
+
+            return {"success": False, "error": f"Unknown tool: {tool_name}"}
 
         except Exception as e:
-            logger.error(f"Error handling {tool_name}: {e}")
+            logger.error(f"Error handling tool request: {str(e)}", exc_info=True)
             return {"success": False, "error": str(e)}
 
 async def main():
     """Run the Remote MacOS MCP server."""
     logger.info("Remote MacOS computer use server starting")
 
-    # Initialize MCP server
+    # Initialize global MCP server
+    global mcp_server
     mcp_server = MCPServer()
     await mcp_server.initialize()
 
@@ -297,103 +312,13 @@ async def main():
         """List available tools"""
         tools = []
 
-        # Add MacOS tools
-        tools.extend([
-            types.Tool(
-                name="remote_macos_get_screen",
-                description="Connect to a remote MacOs machine and get a screenshot of the remote desktop. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {}
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_scroll",
-                description="Perform a mouse scroll at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "direction": {
-                            "type": "string",
-                            "description": "Scroll direction",
-                            "enum": ["up", "down"],
-                            "default": "down"
-                        }
-                    },
-                    "required": ["x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_send_keys",
-                description="Send keyboard input to a remote MacOs machine. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "text": {"type": "string", "description": "Text to send as keystrokes"},
-                        "special_key": {"type": "string", "description": "Special key to send (e.g., 'enter', 'backspace', 'tab', 'escape', etc.)"},
-                        "key_combination": {"type": "string", "description": "Key combination to send (e.g., 'ctrl+c', 'cmd+q', 'ctrl+alt+delete', etc.)"}
-                    },
-                    "required": []
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_move",
-                description="Move the mouse cursor to specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768}
-                    },
-                    "required": ["x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_click",
-                description="Perform a mouse click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
-                    },
-                    "required": ["x", "y"]
-                },
-            ),
-            types.Tool(
-                name="remote_macos_mouse_double_click",
-                description="Perform a mouse double-click at specified coordinates on a remote MacOs machine, with automatic coordinate scaling. Uses environment variables for connection details.",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "x": {"type": "integer", "description": "X coordinate for mouse position (in source dimensions)"},
-                        "y": {"type": "integer", "description": "Y coordinate for mouse position (in source dimensions)"},
-                        "source_width": {"type": "integer", "description": "Width of the reference screen for coordinate scaling", "default": 1366},
-                        "source_height": {"type": "integer", "description": "Height of the reference screen for coordinate scaling", "default": 768},
-                        "button": {"type": "integer", "description": "Mouse button (1=left, 2=middle, 3=right)", "default": 1}
-                    },
-                    "required": ["x", "y"]
-                },
-            ),
-        ])
-
-        # Add browser tools
+        # Get all tools from MCPServer
         for name, tool_def in mcp_server.tool_definitions.items():
-            if name.startswith('browser_'):
-                tools.append(types.Tool(
-                    name=name,
-                    description=tool_def.get('description', ''),
-                    inputSchema=tool_def.get('parameters', {})
-                ))
+            tools.append(types.Tool(
+                name=name,
+                description=tool_def.get('description', ''),
+                inputSchema=tool_def.get('parameters', {})
+            ))
 
         return tools
 
@@ -406,28 +331,28 @@ async def main():
             if not arguments:
                 arguments = {}
 
-            # Try browser tools first
-            if name.startswith('browser_'):
-                result = await mcp_server.handle_request(name, arguments)
-                if not result.get('success', False):
-                    return [types.TextContent(type="text", text=f"Error: {result.get('error', 'Unknown error')}")]
-                return [types.TextContent(type="text", text=str(result))]
+            # Handle all tools through MCPServer
+            result = await mcp_server.handle_request(name, arguments)
 
-            # Handle MacOS tools
-            if name == "remote_macos_get_screen":
-                return await handle_remote_macos_get_screen(arguments)
-            elif name == "remote_macos_mouse_scroll":
-                return handle_remote_macos_mouse_scroll(arguments)
-            elif name == "remote_macos_send_keys":
-                return handle_remote_macos_send_keys(arguments)
-            elif name == "remote_macos_mouse_move":
-                return handle_remote_macos_mouse_move(arguments)
-            elif name == "remote_macos_mouse_click":
-                return handle_remote_macos_mouse_click(arguments)
-            elif name == "remote_macos_mouse_double_click":
-                return handle_remote_macos_mouse_double_click(arguments)
+            # Convert result to appropriate response type
+            if isinstance(result, dict):
+                if result.get('success', False):
+                    # Handle special cases
+                    if 'screenshot' in result:
+                        # Return screenshot as image content
+                        return [types.ImageContent(type="image", data=result['screenshot'])]
+                    elif 'html' in result:
+                        # Return HTML as text content
+                        return [types.TextContent(type="text", text=result['html'])]
+                    else:
+                        # Return general success result
+                        return [types.TextContent(type="text", text=str(result))]
+                else:
+                    # Return error message
+                    return [types.TextContent(type="text", text=f"Error: {result.get('error', 'Unknown error')}")]
             else:
-                raise ValueError(f"Unknown tool: {name}")
+                # Return raw result
+                return [types.TextContent(type="text", text=str(result))]
 
         except Exception as e:
             logger.error(f"Error in handle_call_tool: {str(e)}", exc_info=True)

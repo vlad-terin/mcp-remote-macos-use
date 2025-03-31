@@ -11,4 +11,4 @@ COPY . .
 RUN pip install -e .
 
 # Run the server
-CMD ["python", "-m", "mcp_remote_macos_use.server"] 
+CMD ["python", "-m", "mcp_remote_macos_use.server"]
