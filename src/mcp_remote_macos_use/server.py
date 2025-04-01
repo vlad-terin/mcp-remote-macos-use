@@ -219,16 +219,22 @@ class MCPServer:
         if self._initialized:
             return
 
+        logger.debug("Initializing MCP server handlers")
+
         # Initialize MacOS handlers if needed
         if hasattr(self.macos_handlers, 'initialize'):
+            logger.debug("Initializing MacOS handlers")
             await self.macos_handlers.initialize()
 
         # Initialize browser handlers
+        logger.debug("Initializing browser handlers")
         await self.browser_handlers.ensure_browser(headless=True)
 
         # Cache tool definitions
+        logger.debug("Getting tool definitions")
         self._tool_definitions = self._get_tool_definitions()
         self._initialized = True
+        logger.debug("MCP server initialization complete")
 
     async def cleanup(self):
         """Cleanup all handlers."""
@@ -247,14 +253,20 @@ class MCPServer:
 
         # Add MacOS tools
         if hasattr(self.macos_handlers, 'tool_definitions'):
-            tools.update(self.macos_handlers.tool_definitions)
+            logger.debug("Getting MacOS tool definitions")
+            macos_tools = self.macos_handlers.tool_definitions
+            logger.debug(f"Found {len(macos_tools)} MacOS tools")
+            tools.update(macos_tools)
 
         # Add browser tools with proper prefixes
         if hasattr(self.browser_handlers, 'tool_definitions'):
+            logger.debug("Getting browser tool definitions")
             browser_tools = self.browser_handlers.tool_definitions
+            logger.debug(f"Found {len(browser_tools)} browser tools")
             for name, tool in browser_tools.items():
                 tools[f"browser_{name}"] = tool
 
+        logger.debug(f"Total tools found: {len(tools)}")
         return tools
 
     @property
@@ -311,15 +323,19 @@ async def main():
     async def handle_list_tools() -> list[types.Tool]:
         """List available tools"""
         tools = []
+        logger.debug(f"mcp_server: {mcp_server}")
+        logger.debug(f"tool_definitions: {mcp_server.tool_definitions if mcp_server else 'None'}")
 
         # Get all tools from MCPServer
         for name, tool_def in mcp_server.tool_definitions.items():
+            logger.debug(f"Adding tool: {name}")
             tools.append(types.Tool(
                 name=name,
                 description=tool_def.get('description', ''),
                 inputSchema=tool_def.get('parameters', {})
             ))
 
+        logger.debug(f"Total tools registered: {len(tools)}")
         return tools
 
     @server.call_tool()
